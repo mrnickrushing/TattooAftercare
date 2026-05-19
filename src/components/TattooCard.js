@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { getStage, getStageInfo, getDayNumber } from '../utils/healingStages';
 import HealingProgressBar from './HealingProgressBar';
 
@@ -9,33 +9,54 @@ export default function TattooCard({ tattoo, onPress }) {
   const stageKey = getStage(tattoo.date_tattooed);
   const stageInfo = getStageInfo(stageKey);
   const dayNumber = getDayNumber(tattoo.date_tattooed);
+  const initial = tattoo.name ? tattoo.name.charAt(0).toUpperCase() : '?';
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
-      <View style={styles.topRow}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      {/* Left photo strip */}
+      <View style={styles.imageStrip}>
+        <View style={[styles.goldAccent, { backgroundColor: stageInfo.color }]} />
         {tattoo.thumbnail_uri ? (
-          <Image source={{ uri: tattoo.thumbnail_uri }} style={styles.thumbnail} />
+          <Image
+            source={{ uri: tattoo.thumbnail_uri }}
+            style={styles.image}
+            resizeMode="cover"
+          />
         ) : (
-          <View style={styles.thumbnailPlaceholder}>
-            <Feather name="image" size={20} color={COLORS.textMuted} />
+          <View style={styles.imagePlaceholder}>
+            <Text style={styles.initialText}>{initial}</Text>
           </View>
         )}
-        <View style={styles.info}>
+      </View>
+
+      {/* Right content */}
+      <View style={styles.content}>
+        <View style={styles.topSection}>
           <Text style={styles.name} numberOfLines={1}>{tattoo.name}</Text>
           {tattoo.placement ? (
             <Text style={styles.placement} numberOfLines={1}>{tattoo.placement}</Text>
           ) : null}
           {tattoo.artist_name ? (
-            <Text style={styles.artist} numberOfLines={1}>by {tattoo.artist_name}</Text>
+            <Text style={styles.artist} numberOfLines={1}>
+              <Text style={styles.artistBy}>by </Text>
+              {tattoo.artist_name}
+            </Text>
           ) : null}
-          <View style={[styles.stageBadge, { backgroundColor: stageInfo.color + '22', borderColor: stageInfo.color }]}>
-            <Text style={[styles.stageText, { color: stageInfo.color }]}>{stageInfo.name}</Text>
-          </View>
         </View>
-        <Feather name="chevron-right" size={18} color={COLORS.textMuted} />
+
+        <HealingProgressBar
+          dateTattooed={tattoo.date_tattooed}
+          style={styles.progressBar}
+        />
       </View>
-      <View style={styles.progressContainer}>
-        <HealingProgressBar dateTattooed={tattoo.date_tattooed} />
+
+      {/* Chevron */}
+      <View style={styles.chevron}>
+        <Feather name="chevron-right" size={16} color={COLORS.textMuted} />
       </View>
     </TouchableOpacity>
   );
@@ -45,59 +66,72 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.card,
     borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    marginBottom: SPACING.md,
-  },
-  topRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: SPACING.md,
+    overflow: 'hidden',
+    ...SHADOWS.card,
   },
-  thumbnail: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.md,
-    marginRight: SPACING.md,
+  imageStrip: {
+    width: 90,
+    flexDirection: 'row',
   },
-  thumbnailPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.md,
+  goldAccent: {
+    width: 3,
+    height: '100%',
+  },
+  image: {
+    flex: 1,
+    height: '100%',
+    minHeight: 110,
+  },
+  imagePlaceholder: {
+    flex: 1,
+    height: '100%',
+    minHeight: 110,
     backgroundColor: COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.md,
   },
-  info: {
+  initialText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.accent,
+    letterSpacing: -0.5,
+  },
+  content: {
     flex: 1,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    justifyContent: 'space-between',
+  },
+  topSection: {
     gap: 3,
+    marginBottom: SPACING.sm,
   },
   name: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.1,
     color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.md,
-    fontWeight: FONTS.weights.semibold,
   },
   placement: {
+    fontSize: 12,
+    fontWeight: '400',
     color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.sm,
   },
   artist: {
+    fontSize: 12,
+    fontWeight: '400',
     color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
   },
-  stageBadge: {
-    alignSelf: 'flex-start',
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    marginTop: 2,
+  artistBy: {
+    fontStyle: 'italic',
   },
-  stageText: {
-    fontSize: FONTS.sizes.xs,
-    fontWeight: FONTS.weights.semibold,
+  progressBar: {
+    marginTop: 4,
   },
-  progressContainer: {
-    marginTop: SPACING.xs,
+  chevron: {
+    justifyContent: 'center',
+    paddingRight: SPACING.sm,
   },
 });

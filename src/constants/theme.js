@@ -1,47 +1,65 @@
 import { StyleSheet } from 'react-native';
 
 export const COLORS = {
-  background: '#0D0D0D',
-  surface: '#1A1A1A',
-  card: '#242424',
-  accent: '#C8A951',
-  accentDim: '#9A7D3A',
-
-  textPrimary: '#FFFFFF',
-  textSecondary: '#A0A0A0',
-  textMuted: '#666666',
-
-  danger: '#E05252',
-  warning: '#E09452',
-  success: '#52C07A',
-  info: '#5292C0',
-
+  background: '#0A0A0A',
+  surface: '#141414',
+  card: '#1C1C1C',
+  cardElevated: '#222222',
   border: '#2A2A2A',
   borderLight: '#333333',
+
+  accent: '#C8A951',
+  accentDim: '#8B7535',
+  accentMuted: 'rgba(200,169,81,0.15)',
+  accentBorder: 'rgba(200,169,81,0.3)',
+
+  textPrimary: '#F5F5F5',
+  textSecondary: '#A0A0A0',
+  textMuted: '#555555',
+  textInverse: '#0A0A0A',
+
+  success: '#4CAF7D',
+  successMuted: 'rgba(76,175,125,0.15)',
+  warning: '#E09452',
+  warningMuted: 'rgba(224,148,82,0.15)',
+  danger: '#E05252',
+  dangerMuted: 'rgba(224,82,82,0.15)',
+  info: '#5292C0',
 
   stageColors: {
     fresh: '#E05252',
     early: '#E09452',
     peeling: '#C8A951',
-    settling: '#52C07A',
+    settling: '#4CAF7D',
     healed: '#5292C0',
   },
 
-  tabBar: '#1A1A1A',
+  tabBar: '#0A0A0A',
   tabBarActive: '#C8A951',
-  tabBarInactive: '#666666',
-  tabBarBorder: '#2A2A2A',
+  tabBarInactive: '#555555',
+  tabBarBorder: '#1C1C1C',
 };
 
 export const FONTS = {
+  displayLarge: { fontSize: 34, fontWeight: '700', letterSpacing: -0.5, color: COLORS.textPrimary },
+  displayMedium: { fontSize: 28, fontWeight: '700', letterSpacing: -0.3, color: COLORS.textPrimary },
+  headingLarge: { fontSize: 22, fontWeight: '700', letterSpacing: -0.2, color: COLORS.textPrimary },
+  headingMedium: { fontSize: 18, fontWeight: '600', letterSpacing: -0.1, color: COLORS.textPrimary },
+  headingSmall: { fontSize: 15, fontWeight: '600', letterSpacing: 0, color: COLORS.textPrimary },
+  labelLarge: { fontSize: 13, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase', color: COLORS.textSecondary },
+  labelSmall: { fontSize: 11, fontWeight: '600', letterSpacing: 1.0, textTransform: 'uppercase', color: COLORS.textMuted },
+  body: { fontSize: 15, fontWeight: '400', lineHeight: 22, color: COLORS.textSecondary },
+  bodySmall: { fontSize: 13, fontWeight: '400', lineHeight: 19, color: COLORS.textSecondary },
+
+  // Legacy compatibility
   sizes: {
     xs: 11,
     sm: 13,
     md: 15,
-    lg: 17,
-    xl: 20,
-    xxl: 24,
-    xxxl: 30,
+    lg: 18,
+    xl: 22,
+    xxl: 28,
+    xxxl: 34,
   },
   weights: {
     regular: '400',
@@ -52,21 +70,24 @@ export const FONTS = {
   },
 };
 
-export const RADIUS = {
-  sm: 6,
-  md: 8,
-  lg: 12,
-  xl: 16,
-  full: 999,
-};
+export const SPACING = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32 };
+export const RADIUS = { sm: 6, md: 10, lg: 14, xl: 20, full: 999 };
 
-export const SPACING = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  xxl: 32,
+export const SHADOWS = {
+  card: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  gold: {
+    shadowColor: '#C8A951',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+  },
 };
 
 export const commonStyles = StyleSheet.create({
@@ -93,70 +114,38 @@ export const commonStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  textPrimary: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.md,
-  },
-  textSecondary: {
-    color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.sm,
-  },
-  textMuted: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
-  },
-  title: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.xl,
-    fontWeight: FONTS.weights.bold,
-  },
-  subtitle: {
-    color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.sm,
-    marginTop: 2,
-  },
   divider: {
     height: 1,
     backgroundColor: COLORS.border,
     marginVertical: SPACING.md,
   },
-  badge: {
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 3,
-    alignSelf: 'flex-start',
-  },
-  badgeText: {
-    fontSize: FONTS.sizes.xs,
-    fontWeight: FONTS.weights.semibold,
-    color: COLORS.textPrimary,
-  },
   button: {
     backgroundColor: COLORS.accent,
     borderRadius: RADIUS.md,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonText: {
-    color: '#000000',
-    fontSize: FONTS.sizes.md,
-    fontWeight: FONTS.weights.bold,
+    color: COLORS.textInverse,
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   buttonOutline: {
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: COLORS.accentBorder,
     borderRadius: RADIUS.md,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonOutlineText: {
     color: COLORS.accent,
-    fontSize: FONTS.sizes.md,
-    fontWeight: FONTS.weights.semibold,
+    fontSize: 15,
+    fontWeight: '600',
   },
   input: {
     backgroundColor: COLORS.surface,
@@ -164,24 +153,25 @@ export const commonStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.md,
-    paddingHorizontal: SPACING.md,
+    fontSize: 15,
+    paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
   },
   label: {
-    color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.sm,
-    fontWeight: FONTS.weights.medium,
-    marginBottom: SPACING.xs,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.0,
+    textTransform: 'uppercase',
+    color: COLORS.textMuted,
+    marginBottom: 6,
   },
   sectionHeader: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
-    fontWeight: FONTS.weights.semibold,
-    letterSpacing: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
+    color: COLORS.textSecondary,
     marginBottom: SPACING.sm,
-    marginTop: SPACING.md,
   },
   emptyState: {
     flex: 1,
@@ -191,14 +181,14 @@ export const commonStyles = StyleSheet.create({
   },
   emptyStateText: {
     color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.md,
+    fontSize: 15,
     textAlign: 'center',
     marginTop: SPACING.md,
   },
   fab: {
     position: 'absolute',
-    bottom: 24,
-    right: 24,
+    bottom: SPACING.xl,
+    right: SPACING.xl,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -208,7 +198,7 @@ export const commonStyles = StyleSheet.create({
     shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowRadius: 12,
+    elevation: 10,
   },
 });

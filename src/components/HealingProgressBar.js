@@ -1,54 +1,90 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, Animated, StyleSheet } from 'react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
-import { getDayNumber, getStage, getStageInfo, getHealingProgress, getDaysUntilHealed } from '../utils/healingStages';
+import {
+  getDayNumber,
+  getStage,
+  getStageInfo,
+  getHealingProgress,
+  getDaysUntilHealed,
+  isHealed,
+} from '../utils/healingStages';
+
+const STAGE_KEYS = ['fresh', 'early', 'peeling', 'settling', 'healed'];
 
 export default function HealingProgressBar({ dateTattooed, style }) {
-  const animatedWidth = useRef(new Animated.Value(0)).current;
-
-  const dayNumber = getDayNumber(dateTattooed);
+  const progress = useRef(new Animated.Value(0)).current;
+  const pct = getHealingProgress(dateTattooed);
+  const day = getDayNumber(dateTattooed);
   const stageKey = getStage(dateTattooed);
   const stageInfo = getStageInfo(stageKey);
-  const progress = getHealingProgress(dateTattooed);
+  const healed = isHealed(dateTattooed);
   const daysLeft = getDaysUntilHealed(dateTattooed);
-  const healed = daysLeft === 0;
 
   useEffect(() => {
-    Animated.timing(animatedWidth, {
-      toValue: progress,
-      duration: 800,
+    Animated.spring(progress, {
+      toValue: pct,
       useNativeDriver: false,
+      tension: 40,
+      friction: 8,
     }).start();
-  }, [progress]);
+  }, [pct]);
+
+  const barWidth = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  const currentStageIndex = STAGE_KEYS.indexOf(stageKey);
 
   return (
     <View style={[styles.container, style]}>
-      <View style={styles.topRow}>
-        <View style={[styles.stageBadge, { backgroundColor: stageInfo.color + '22', borderColor: stageInfo.color }]}>
-          <Text style={[styles.stageName, { color: stageInfo.color }]}>{stageInfo.name}</Text>
-        </View>
-        <Text style={styles.dayLabel}>
-          {healed ? 'Healed!' : `Day ${dayNumber}`}
-        </Text>
-      </View>
-      <View style={styles.track}>
-        <Animated.View
+      <View style={styles.header}>
+        <View
           style={[
-            styles.fill,
+            styles.stageBadge,
             {
-              backgroundColor: stageInfo.color,
-              width: animatedWidth.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['0%', '100%'],
-              }),
+              backgroundColor: stageInfo.color + '22',
+              borderColor: stageInfo.color + '55',
             },
           ]}
+        >
+          <Text style={[styles.stageText, { color: stageInfo.color }]}>
+            {stageInfo.name.toUpperCase()}
+          </Text>
+        </View>
+        <Text>
+          <Text style={styles.dayNumber}>Day {day}</Text>
+          <Text style={styles.dayOf}> of 29</Text>
+        </Text>
+      </View>
+
+      <View style={styles.track}>
+        <Animated.View
+          style={[styles.fill, { width: barWidth, backgroundColor: stageInfo.color }]}
         />
       </View>
-      <View style={styles.bottomRow}>
-        <Text style={styles.timeframe}>{stageInfo.timeframe}</Text>
-        <Text style={styles.daysLeft}>
-          {healed ? 'Portfolio ready!' : `${daysLeft} days to healed`}
+
+      <View style={styles.footer}>
+        <View style={styles.dots}>
+          {STAGE_KEYS.map((key, i) => {
+            const isActive = key === stageKey;
+            const isPast = currentStageIndex > i;
+            return (
+              <View
+                key={key}
+                style={[
+                  styles.dot,
+                  isActive && { backgroundColor: COLORS.accent, width: 8, height: 8 },
+                  isPast && !isActive && { backgroundColor: COLORS.accentDim },
+                  !isActive && !isPast && { backgroundColor: COLORS.border },
+                ]}
+              />
+            );
+          })}
+        </View>
+        <Text style={[styles.daysLeft, healed && { color: COLORS.success }]}>
+          {healed ? '✓  Fully Healed' : `${daysLeft}d to healed`}
         </Text>
       </View>
     </View>
@@ -57,30 +93,37 @@ export default function HealingProgressBar({ dateTattooed, style }) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 6,
+    gap: 8,
   },
-  topRow: {
+  header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   stageBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
   },
-  stageName: {
-    fontSize: FONTS.sizes.xs,
-    fontWeight: FONTS.weights.semibold,
+  stageText: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1.0,
+    textTransform: 'uppercase',
   },
-  dayLabel: {
-    color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.sm,
-    fontWeight: FONTS.weights.medium,
+  dayNumber: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  dayOf: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: COLORS.textMuted,
   },
   track: {
-    height: 6,
+    height: 4,
     backgroundColor: COLORS.border,
     borderRadius: RADIUS.full,
     overflow: 'hidden',
@@ -89,16 +132,26 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: RADIUS.full,
   },
-  bottomRow: {
+  footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  timeframe: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
+  dots: {
+    flexDirection: 'row',
+    gap: 5,
+    alignItems: 'center',
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: RADIUS.full,
   },
   daysLeft: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1.0,
+    textTransform: 'uppercase',
     color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
   },
 });
