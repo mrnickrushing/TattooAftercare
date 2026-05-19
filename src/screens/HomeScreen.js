@@ -12,15 +12,10 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import { COLORS, FONTS, SPACING, RADIUS, commonStyles } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, commonStyles } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 import { isHealed, getStage, getCareTasks, getDayNumber } from '../utils/healingStages';
-import {
-  getCareLogForDate,
-  addCareLog,
-  updateCareLog,
-  getStreak,
-} from '../database/db';
+import { getCareLogForDate, addCareLog, updateCareLog } from '../database/db';
 import TattooCard from '../components/TattooCard';
 import CareTaskItem from '../components/CareTaskItem';
 import StreakBadge from '../components/StreakBadge';
@@ -33,6 +28,7 @@ export default function HomeScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
 
   const today = format(new Date(), 'yyyy-MM-dd');
+  const todayDisplay = format(new Date(), 'EEE, MMM d').toUpperCase();
   const activeTattoos = tattoos.filter((t) => !isHealed(t.date_tattooed));
 
   const loadCareData = useCallback(async () => {
@@ -69,7 +65,7 @@ export default function HomeScreen({ navigation }) {
   );
 
   useEffect(() => {
-    if (!loading || activeTattoos.length >= 0) {
+    if (activeTattoos.length >= 0) {
       loadCareData();
     }
   }, [tattoos]);
@@ -81,26 +77,13 @@ export default function HomeScreen({ navigation }) {
 
       setTaskStates((prev) => ({
         ...prev,
-        [tattoo.id]: {
-          ...prev[tattoo.id],
-          [task.id]: newChecked,
-        },
+        [tattoo.id]: { ...prev[tattoo.id], [task.id]: newChecked },
       }));
 
       try {
         const existingLog = careLogs[tattoo.id];
         const stage = getStage(tattoo.date_tattooed);
         const tasks = getCareTasks(stage);
-
-        const updatedFields = {};
-        for (const t of tasks) {
-          if (t.field) {
-            const checked = t.id === task.id ? newChecked : (taskStates[tattoo.id]?.[t.id] ?? false);
-            if (!updatedFields[t.field] || checked) {
-              updatedFields[t.field] = checked ? 1 : 0;
-            }
-          }
-        }
 
         const allStates = { ...(taskStates[tattoo.id] || {}), [task.id]: newChecked };
         const washed = tasks.filter((t) => t.field === 'washed').some((t) => allStates[t.id]);
@@ -120,12 +103,15 @@ export default function HomeScreen({ navigation }) {
             moisturized: moisturized ? 1 : 0,
             health_status: 'good',
           });
-          const newLog = { id: newId, tattoo_id: tattoo.id, log_date: today, washed: washed ? 1 : 0, moisturized: moisturized ? 1 : 0, health_status: 'good' };
+          const newLog = {
+            id: newId, tattoo_id: tattoo.id, log_date: today,
+            washed: washed ? 1 : 0, moisturized: moisturized ? 1 : 0, health_status: 'good',
+          };
           setCareLogs((prev) => ({ ...prev, [tattoo.id]: newLog }));
         }
 
         await refreshStreak();
-      } catch (error) {
+      } catch {
         Alert.alert('Error', 'Could not save care task. Please try again.');
       }
     },
@@ -150,6 +136,15 @@ export default function HomeScreen({ navigation }) {
     }
   }
 
+  const pendingCount = allTasks.filter(({ task, tattoo }) => !(taskStates[tattoo.id]?.[task.id] ?? false)).length;
+  const allDone = allTasks.length > 0 && pendingCount === 0;
+
+  // Stats
+  const firstTattooDate = tattoos.length > 0
+    ? tattoos.reduce((earliest, t) => (!earliest || t.date_tattooed < earliest ? t.date_tattooed : earliest), null)
+    : null;
+  const daysSinceFirst = firstTattooDate ? getDayNumber(firstTattooDate) - 1 : null;
+
   if (loading) {
     return (
       <View style={[commonStyles.container, styles.center]}>
@@ -167,22 +162,66 @@ export default function HomeScreen({ navigation }) {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Header bar */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.headerTitle}>Tattoo Aftercare</Text>
-            <Text style={styles.headerDate}>{format(new Date(), 'EEEE, MMMM d')}</Text>
+            <Text style={styles.logoLine1}>TATTOO</Text>
+            <Text style={styles.logoLine2}>AFTERCARE</Text>
           </View>
           <StreakBadge streak={streak} />
         </View>
 
-        {/* Today's Care Section */}
+        {/* Date chip */}
+        <View style={styles.dateChipRow}>
+          <View style={styles.dateChip}>
+            <Text style={styles.dateChipText}>{todayDisplay}</Text>
+          </View>
+        </View>
+
+        {/* Stats row */}
+        {tattoos.length > 0 && (
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, SHADOWS.card]}>
+              <Text style={styles.statLabel}>ACTIVE</Text>
+              <Text style={styles.statValue}>{activeTattoos.length}</Text>
+            </View>
+            <View style={[styles.statCard, SHADOWS.card]}>
+              <Text style={styles.statLabel}>STREAK</Text>
+              <Text style={[styles.statValue, { color: COLORS.accent }]}>{streak}</Text>
+            </View>
+            <View style={[styles.statCard, SHADOWS.card]}>
+              <Text style={styles.statLabel}>DAYS IN</Text>
+              <Text style={styles.statValue}>{daysSinceFirst !== null ? daysSinceFirst : '—'}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Today's Care section */}
         {activeTattoos.length > 0 && (
           <View style={styles.section}>
-            <Text style={commonStyles.sectionHeader}>Today's Care</Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeaderText}>TODAY'S CARE</Text>
+              {!allDone && pendingCount > 0 && (
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{pendingCount}</Text>
+                </View>
+              )}
+              {allDone && (
+                <View style={styles.allDoneBadge}>
+                  <Text style={styles.allDoneBadgeText}>✓ DONE</Text>
+                </View>
+              )}
+            </View>
+
             <View style={styles.taskCard}>
-              {allTasks.length === 0 ? (
-                <Text style={styles.emptyTaskText}>No tasks for today.</Text>
+              {allDone ? (
+                <View style={styles.allDoneRow}>
+                  <Text style={styles.allDoneText}>All done today ✓</Text>
+                </View>
+              ) : allTasks.length === 0 ? (
+                <View style={styles.allDoneRow}>
+                  <Text style={styles.allDoneText}>No tasks today</Text>
+                </View>
               ) : (
                 allTasks.map(({ task, tattoo }, index) => (
                   <View key={`${tattoo.id}-${task.id}`}>
@@ -200,24 +239,29 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        {/* Active Tattoos Section */}
+        {/* Healing section */}
         <View style={styles.section}>
-          <Text style={commonStyles.sectionHeader}>
-            {activeTattoos.length > 0 ? 'Active Healing' : 'Your Tattoos'}
-          </Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeaderText}>HEALING</Text>
+            {activeTattoos.length > 0 && (
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{activeTattoos.length}</Text>
+              </View>
+            )}
+          </View>
 
           {activeTattoos.length === 0 ? (
             <View style={styles.emptyState}>
-              <Feather name="plus-circle" size={48} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>No active tattoos</Text>
+              <Text style={styles.emptyIcon}>🖊️</Text>
+              <Text style={styles.emptyTitle}>No tattoos tracked yet</Text>
               <Text style={styles.emptySubtitle}>
-                Add your first tattoo to start tracking the healing journey.
+                Start tracking your healing journey and never miss a care step.
               </Text>
               <TouchableOpacity
-                style={commonStyles.button}
+                style={styles.emptyButton}
                 onPress={() => navigation.navigate('AddTattoo')}
               >
-                <Text style={commonStyles.buttonText}>Add First Tattoo</Text>
+                <Text style={styles.emptyButtonText}>Add Your First Tattoo</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -225,9 +269,7 @@ export default function HomeScreen({ navigation }) {
               <TattooCard
                 key={tattoo.id}
                 tattoo={tattoo}
-                onPress={() =>
-                  navigation.navigate('TattooDetail', { tattooId: tattoo.id })
-                }
+                onPress={() => navigation.navigate('TattooDetail', { tattooId: tattoo.id })}
               />
             ))
           )}
@@ -236,10 +278,11 @@ export default function HomeScreen({ navigation }) {
 
       {/* FAB */}
       <TouchableOpacity
-        style={commonStyles.fab}
+        style={styles.fab}
         onPress={() => navigation.navigate('AddTattoo')}
+        activeOpacity={0.85}
       >
-        <Feather name="plus" size={24} color="#000000" />
+        <Feather name="plus" size={24} color={COLORS.textInverse} />
       </TouchableOpacity>
     </View>
   );
@@ -251,59 +294,189 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scrollContent: {
-    padding: SPACING.lg,
-    paddingBottom: 100,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: 110,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING.xl,
-    paddingTop: SPACING.md,
+    marginBottom: SPACING.lg,
   },
-  headerTitle: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.xxl,
-    fontWeight: FONTS.weights.heavy,
+  logoLine1: {
+    color: COLORS.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 3,
+    lineHeight: 14,
   },
-  headerDate: {
+  logoLine2: {
+    color: COLORS.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 3,
+    lineHeight: 14,
+  },
+  dateChipRow: {
+    marginBottom: SPACING.lg,
+  },
+  dateChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  dateChipText: {
     color: COLORS.textMuted,
-    fontSize: FONTS.sizes.sm,
-    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.0,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginBottom: SPACING.xl,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  statLabel: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  statValue: {
+    color: COLORS.textPrimary,
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: -0.5,
   },
   section: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  sectionHeaderText: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  countBadge: {
+    backgroundColor: COLORS.accent,
+    borderRadius: RADIUS.full,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  countBadgeText: {
+    color: COLORS.textInverse,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  allDoneBadge: {
+    backgroundColor: COLORS.successMuted,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: COLORS.success + '44',
+  },
+  allDoneBadgeText: {
+    color: COLORS.success,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   taskCard: {
     backgroundColor: COLORS.card,
     borderRadius: RADIUS.lg,
     paddingVertical: SPACING.xs,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
   },
   taskDivider: {
     height: 1,
     backgroundColor: COLORS.border,
     marginHorizontal: SPACING.md,
   },
-  emptyTaskText: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.sm,
-    textAlign: 'center',
-    padding: SPACING.lg,
+  allDoneRow: {
+    paddingVertical: SPACING.lg,
+    alignItems: 'center',
+  },
+  allDoneText: {
+    color: COLORS.success,
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: SPACING.xxl,
+    paddingVertical: SPACING.xxxl,
     gap: SPACING.md,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: SPACING.sm,
   },
   emptyTitle: {
     color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: FONTS.weights.semibold,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   emptySubtitle: {
     color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.sm,
+    fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+    paddingHorizontal: SPACING.xl,
+  },
+  emptyButton: {
+    backgroundColor: COLORS.accent,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    marginTop: SPACING.sm,
+    ...SHADOWS.gold,
+  },
+  emptyButtonText: {
+    color: COLORS.textInverse,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: SPACING.xl,
+    right: SPACING.xl,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.gold,
   },
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, FONTS, RADIUS, SPACING } from '../constants/theme';
+import { COLORS, RADIUS, SPACING } from '../constants/theme';
 
 export default function StreakBadge({ streak }) {
   if (!streak || streak === 0) return null;
@@ -9,7 +9,7 @@ export default function StreakBadge({ streak }) {
     <View style={styles.badge}>
       <Text style={styles.flame}>🔥</Text>
       <Text style={styles.count}>{streak}</Text>
-      <Text style={styles.label}>{streak === 1 ? 'day' : 'days'}</Text>
+      <Text style={styles.label}>DAY STREAK</Text>
     </View>
   );
 }
@@ -18,25 +18,27 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.accentMuted,
     borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.sm + 2,
-    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
     borderWidth: 1,
-    borderColor: COLORS.accent + '40',
-    gap: 3,
+    borderColor: COLORS.accentBorder,
+    gap: 4,
   },
   flame: {
-    fontSize: 14,
+    fontSize: 13,
   },
   count: {
     color: COLORS.accent,
-    fontSize: FONTS.sizes.md,
-    fontWeight: FONTS.weights.bold,
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   label: {
-    color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.xs,
-    fontWeight: FONTS.weights.medium,
+    color: COLORS.accentDim,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
 });

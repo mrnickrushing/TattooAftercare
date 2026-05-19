@@ -1,36 +1,52 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
-import { COLORS, FONTS, RADIUS, SPACING } from '../constants/theme';
+import { COLORS, RADIUS, SPACING } from '../constants/theme';
 
 export default function CareTaskItem({ task, checked, onToggle, tattooName }) {
+  const timeLabel = task.time === 'morning' ? 'AM' : task.time === 'evening' ? 'PM' : null;
+
   return (
     <TouchableOpacity
       style={styles.row}
       onPress={onToggle}
       activeOpacity={0.7}
     >
-      <TouchableOpacity
-        style={[styles.checkbox, checked && styles.checkboxChecked]}
-        onPress={onToggle}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      {/* Premium circle checkbox */}
+      <View
+        style={[
+          styles.checkbox,
+          checked ? styles.checkboxChecked : styles.checkboxUnchecked,
+        ]}
       >
         {checked && <Text style={styles.checkmark}>✓</Text>}
-      </TouchableOpacity>
+      </View>
 
+      {/* Content */}
       <View style={styles.content}>
-        <Text style={[styles.label, checked && styles.labelChecked]}>
+        <Text style={[styles.label, checked && styles.labelChecked]} numberOfLines={2}>
           {task.label}
         </Text>
-        {tattooName && (
-          <Text style={styles.tattooName}>{tattooName}</Text>
-        )}
+        {tattooName ? (
+          <Text style={styles.tattooName}>{tattooName.toUpperCase()}</Text>
+        ) : null}
       </View>
 
-      <View style={[styles.timeBadge, task.time === 'morning' ? styles.morningBadge : task.time === 'evening' ? styles.eveningBadge : styles.anytimeBadge]}>
-        <Text style={styles.timeText}>
-          {task.time === 'morning' ? 'AM' : task.time === 'evening' ? 'PM' : '·'}
-        </Text>
-      </View>
+      {/* Time badge */}
+      {timeLabel ? (
+        <View style={[
+          styles.timeBadge,
+          task.time === 'morning' ? styles.morningBadge : styles.eveningBadge,
+        ]}>
+          <Text style={[
+            styles.timeText,
+            task.time === 'morning' ? styles.morningText : styles.eveningText,
+          ]}>
+            {timeLabel}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.timeBadgePlaceholder} />
+      )}
     </TouchableOpacity>
   );
 }
@@ -39,28 +55,31 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.sm + 2,
     paddingHorizontal: SPACING.md,
     gap: SPACING.md,
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: COLORS.border,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
+  checkboxUnchecked: {
+    borderWidth: 1.5,
+    borderColor: COLORS.accent,
+    backgroundColor: 'transparent',
+  },
   checkboxChecked: {
     backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
+    borderWidth: 0,
   },
   checkmark: {
-    color: '#000',
-    fontSize: 13,
-    fontWeight: FONTS.weights.bold,
+    color: COLORS.textInverse,
+    fontSize: 11,
+    fontWeight: '700',
   },
   content: {
     flex: 1,
@@ -68,8 +87,9 @@ const styles = StyleSheet.create({
   },
   label: {
     color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.sm,
-    fontWeight: FONTS.weights.medium,
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   labelChecked: {
     color: COLORS.textMuted,
@@ -77,20 +97,34 @@ const styles = StyleSheet.create({
   },
   tattooName: {
     color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.8,
   },
   timeBadge: {
     borderRadius: RADIUS.full,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     flexShrink: 0,
   },
-  morningBadge: { backgroundColor: '#E09452' + '30' },
-  eveningBadge: { backgroundColor: '#5292C0' + '30' },
-  anytimeBadge: { backgroundColor: COLORS.surface },
+  morningBadge: {
+    backgroundColor: 'rgba(224,148,82,0.18)',
+  },
+  eveningBadge: {
+    backgroundColor: 'rgba(82,146,192,0.18)',
+  },
   timeText: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.textSecondary,
-    fontWeight: FONTS.weights.semibold,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  morningText: {
+    color: COLORS.warning,
+  },
+  eveningText: {
+    color: COLORS.info,
+  },
+  timeBadgePlaceholder: {
+    width: 28,
   },
 });

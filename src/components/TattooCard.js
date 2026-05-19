@@ -8,7 +8,6 @@ import HealingProgressBar from './HealingProgressBar';
 export default function TattooCard({ tattoo, onPress }) {
   const stageKey = getStage(tattoo.date_tattooed);
   const stageInfo = getStageInfo(stageKey);
-  const dayNumber = getDayNumber(tattoo.date_tattooed);
   const initial = tattoo.name ? tattoo.name.charAt(0).toUpperCase() : '?';
 
   return (
@@ -17,7 +16,7 @@ export default function TattooCard({ tattoo, onPress }) {
       onPress={onPress}
       activeOpacity={0.85}
     >
-      {/* Left photo strip */}
+      {/* Left photo strip with stage color accent border */}
       <View style={styles.imageStrip}>
         <View style={[styles.goldAccent, { backgroundColor: stageInfo.color }]} />
         {tattoo.thumbnail_uri ? (
@@ -28,6 +27,8 @@ export default function TattooCard({ tattoo, onPress }) {
           />
         ) : (
           <View style={styles.imagePlaceholder}>
+            {/* Layered dark overlay to simulate gradient depth */}
+            <View style={styles.placeholderOverlay} />
             <Text style={styles.initialText}>{initial}</Text>
           </View>
         )}
@@ -69,6 +70,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: SPACING.md,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
     ...SHADOWS.card,
   },
   imageStrip: {
@@ -91,9 +94,18 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  placeholderOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.accentMuted,
   },
   initialText: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '700',
     color: COLORS.accent,
     letterSpacing: -0.5,

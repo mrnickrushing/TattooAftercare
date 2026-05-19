@@ -11,64 +11,72 @@ const ShareableCard = React.forwardRef(function ShareableCard({ tattoo, finalPho
     formattedDate = tattoo.date_tattooed;
   }
 
+  const photoUri = finalPhoto?.uri || tattoo.thumbnail_uri;
+  const instagram = tattoo.artist_instagram
+    ? (tattoo.artist_instagram.startsWith('@') ? tattoo.artist_instagram : '@' + tattoo.artist_instagram)
+    : null;
+
   return (
     <View ref={ref} style={styles.card} collapsable={false}>
-      {/* Photo */}
-      {finalPhoto ? (
+      {/* Photo section */}
+      {photoUri ? (
         <Image
-          source={{ uri: finalPhoto.uri }}
-          style={styles.photo}
-          resizeMode="cover"
-        />
-      ) : tattoo.thumbnail_uri ? (
-        <Image
-          source={{ uri: tattoo.thumbnail_uri }}
+          source={{ uri: photoUri }}
           style={styles.photo}
           resizeMode="cover"
         />
       ) : (
         <View style={[styles.photo, styles.photoPlaceholder]}>
-          <Text style={styles.photoPlaceholderText}>✦</Text>
+          {/* Dark layered placeholder simulating depth */}
+          <View style={styles.placeholderInner} />
+          <Text style={styles.photoPlaceholderInitial}>
+            {tattoo.name ? tattoo.name.charAt(0).toUpperCase() : '✦'}
+          </Text>
         </View>
       )}
 
+      {/* Thin gold divider */}
+      <View style={styles.goldDivider} />
+
       {/* Content */}
       <View style={styles.content}>
-        <View style={styles.accentLine} />
+        {/* Tattoo name */}
         <Text style={styles.tattooName}>{tattoo.name}</Text>
 
-        {tattoo.placement ? (
-          <Text style={styles.placement}>{tattoo.placement}</Text>
+        {/* Artist & shop row */}
+        {(tattoo.artist_name || tattoo.shop_name) && (
+          <Text style={styles.artistShopRow}>
+            {[tattoo.artist_name, tattoo.shop_name].filter(Boolean).join('  •  ')}
+          </Text>
+        )}
+
+        {/* Instagram */}
+        {instagram ? (
+          <Text style={styles.instagram}>{instagram}</Text>
         ) : null}
 
-        {tattoo.artist_name ? (
-          <View style={styles.artistRow}>
-            <Text style={styles.artistLabel}>Artist</Text>
-            <Text style={styles.artistValue}>
-              {tattoo.artist_name}
-              {tattoo.artist_instagram ? `  @${tattoo.artist_instagram.replace('@', '')}` : ''}
-            </Text>
+        {/* Style & placement chips */}
+        {(tattoo.style || tattoo.placement) && (
+          <View style={styles.chipsRow}>
+            {tattoo.style ? (
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>{tattoo.style}</Text>
+              </View>
+            ) : null}
+            {tattoo.placement ? (
+              <View style={[styles.chip, styles.chipMuted]}>
+                <Text style={[styles.chipText, styles.chipTextMuted]}>{tattoo.placement}</Text>
+              </View>
+            ) : null}
           </View>
-        ) : null}
+        )}
 
-        {tattoo.shop_name ? (
-          <View style={styles.artistRow}>
-            <Text style={styles.artistLabel}>Shop</Text>
-            <Text style={styles.artistValue}>{tattoo.shop_name}</Text>
-          </View>
-        ) : null}
+        {/* Date */}
+        <Text style={styles.dateText}>{formattedDate}</Text>
 
-        <View style={styles.metaRow}>
-          {tattoo.style ? (
-            <View style={styles.styleChip}>
-              <Text style={styles.styleText}>{tattoo.style}</Text>
-            </View>
-          ) : null}
-          <Text style={styles.dateText}>{formattedDate}</Text>
-        </View>
-
+        {/* Watermark */}
         <View style={styles.watermark}>
-          <Text style={styles.watermarkText}>Tattoo Aftercare App</Text>
+          <Text style={styles.watermarkText}>TATTOO AFTERCARE</Text>
         </View>
       </View>
     </View>
@@ -79,86 +87,91 @@ export default ShareableCard;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#0D0D0D',
+    backgroundColor: '#0A0A0A',
     borderRadius: RADIUS.xl,
     overflow: 'hidden',
     width: 340,
   },
   photo: {
     width: '100%',
-    height: 280,
+    aspectRatio: 16 / 9,
     backgroundColor: COLORS.surface,
   },
   photoPlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
-  photoPlaceholderText: {
+  placeholderInner: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: COLORS.surface,
+    opacity: 0.8,
+  },
+  photoPlaceholderInitial: {
     color: COLORS.accent,
-    fontSize: 48,
+    fontSize: 56,
+    fontWeight: '700',
+  },
+  goldDivider: {
+    height: 1,
+    backgroundColor: COLORS.accentBorder,
+    marginHorizontal: SPACING.xl,
   },
   content: {
     padding: SPACING.xl,
     gap: SPACING.sm,
   },
-  accentLine: {
-    width: 40,
-    height: 3,
-    backgroundColor: COLORS.accent,
-    borderRadius: RADIUS.full,
-    marginBottom: SPACING.xs,
-  },
   tattooName: {
     color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.xxl,
-    fontWeight: FONTS.weights.heavy,
+    fontSize: 26,
+    fontWeight: '700',
+    letterSpacing: -0.3,
     lineHeight: 30,
   },
-  placement: {
+  artistShopRow: {
     color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.sm,
+    fontSize: 13,
+    fontWeight: '400',
   },
-  artistRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: SPACING.sm,
-  },
-  artistLabel: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
-    fontWeight: FONTS.weights.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    width: 36,
-  },
-  artistValue: {
+  instagram: {
     color: COLORS.accent,
-    fontSize: FONTS.sizes.sm,
-    fontWeight: FONTS.weights.medium,
-    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
   },
-  metaRow: {
+  chipsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: SPACING.xs,
+    gap: SPACING.xs,
+    flexWrap: 'wrap',
+    marginTop: 2,
   },
-  styleChip: {
-    backgroundColor: COLORS.accent + '20',
+  chip: {
+    backgroundColor: COLORS.accentMuted,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.accent + '60',
+    borderColor: COLORS.accentBorder,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 3,
   },
-  styleText: {
+  chipMuted: {
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+  },
+  chipText: {
     color: COLORS.accent,
-    fontSize: FONTS.sizes.xs,
-    fontWeight: FONTS.weights.semibold,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  chipTextMuted: {
+    color: COLORS.textSecondary,
   },
   dateText: {
     color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
+    fontSize: 11,
+    fontWeight: '400',
+    marginTop: 2,
   },
   watermark: {
     marginTop: SPACING.sm,
@@ -168,9 +181,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   watermarkText: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
-    letterSpacing: 1,
+    color: COLORS.accent,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 2.5,
     textTransform: 'uppercase',
+    opacity: 0.7,
   },
 });
