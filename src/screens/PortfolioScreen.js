@@ -41,22 +41,27 @@ export default function PortfolioScreen({ navigation }) {
       const latest = photos.length > 0 ? photos[photos.length - 1] : null;
       setSharePhoto(latest);
       setShareTarget(tattoo);
+      // Give time for ShareableCard to render before capture
+      setTimeout(async () => {
+        try {
+          if (!cardRef.current) return;
+          const uri = await captureRef(cardRef, { format: 'png', quality: 1.0 });
+          const canShare = await Sharing.isAvailableAsync();
+          if (canShare) {
+            await Sharing.shareAsync(uri, { mimeType: 'image/png' });
+          } else {
+            Alert.alert('Sharing not available', 'Sharing is not supported on this device.');
+          }
+        } catch (e) {
+          Alert.alert('Error', 'Could not generate shareable card.');
+        } finally {
+          setShareTarget(null);
+          setSharePhoto(null);
+          setSharing(false);
+        }
+      }, 400);
     } catch (e) {
       Alert.alert('Error', 'Could not load photo for sharing.');
-      setSharing(false);
-    }
-  }
-
-  async function doShare() {
-    try {
-      if (!cardRef.current) return;
-      const uri = await cardRef.current.capture();
-      await Sharing.shareAsync(uri, { mimeType: 'image/png' });
-    } catch (e) {
-      Alert.alert('Error', 'Could not generate shareable card.');
-    } finally {
-      setShareTarget(null);
-      setSharePhoto(null);
       setSharing(false);
     }
   }
@@ -169,9 +174,9 @@ export default function PortfolioScreen({ navigation }) {
       {/* Off-screen share card */}
       {shareTarget && (
         <View style={styles.offscreen}>
-          <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} onCapture={doShare}>
+          <View ref={cardRef} collapsable={false}>
             <ShareableCard tattoo={shareTarget} finalPhoto={sharePhoto} />
-          </ViewShot>
+          </View>
         </View>
       )}
 
