@@ -140,6 +140,8 @@ export const STAGES = [
   },
 ];
 
+export const HEALING_STAGES = STAGES;
+
 export const FAQS = [
   {
     question: 'Can I work out after getting a tattoo?',
