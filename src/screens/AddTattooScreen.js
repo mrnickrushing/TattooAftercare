@@ -1,487 +1,286 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, TextInput, TouchableOpacity,
-  StyleSheet, Alert, Image, KeyboardAvoidingView, Platform, ActivityIndicator, Modal,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  TextInput, Alert, KeyboardAvoidingView, Platform, Image, Modal,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { format } from 'date-fns';
-import { COLORS, FONTS, SPACING, RADIUS, commonStyles } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, commonStyles } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 import { addTattoo } from '../database/db';
 import { scheduleMorningReminder, scheduleEveningReminder } from '../utils/notifications';
-import { isHealed } from '../utils/healingStages';
 
 const STYLES = ['Traditional', 'Neo-Traditional', 'Realism', 'Watercolor', 'Blackwork', 'Geometric', 'Tribal', 'Japanese', 'New School', 'Fine Line', 'Other'];
-const PLACEMENTS = ['Arm', 'Forearm', 'Upper Arm', 'Sleeve', 'Shoulder', 'Back', 'Chest', 'Ribs', 'Stomach', 'Hip', 'Thigh', 'Calf', 'Ankle', 'Foot', 'Hand', 'Finger', 'Neck', 'Behind Ear', 'Head', 'Other'];
+const PLACEMENTS = ['Forearm', 'Upper Arm', 'Bicep', 'Wrist', 'Hand', 'Chest', 'Ribs', 'Back', 'Shoulder', 'Neck', 'Leg', 'Thigh', 'Calf', 'Ankle', 'Foot', 'Hip', 'Other'];
 
 export default function AddTattooScreen({ navigation }) {
-  const { tattoos, proStatus, refreshTattoos } = useApp();
-  const [saving, setSaving] = useState(false);
-  const [showStylePicker, setShowStylePicker] = useState(false);
-  const [showPlacementPicker, setShowPlacementPicker] = useState(false);
-
+  const { proStatus, activeCount, refreshTattoos } = useApp();
   const [name, setName] = useState('');
+  const [date, setDate] = useState('');
   const [placement, setPlacement] = useState('');
-  const [dateTattooed, setDateTattooed] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [style, setStyle] = useState('');
   const [artistName, setArtistName] = useState('');
   const [artistInstagram, setArtistInstagram] = useState('');
   const [shopName, setShopName] = useState('');
-  const [style, setStyle] = useState('');
   const [painRating, setPainRating] = useState(0);
   const [notes, setNotes] = useState('');
-  const [thumbnailUri, setThumbnailUri] = useState(null);
+  const [thumbnail, setThumbnail] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [stylePickerVisible, setStylePickerVisible] = useState(false);
+  const [placementPickerVisible, setPlacementPickerVisible] = useState(false);
 
-  const activeTattoos = tattoos.filter((t) => !isHealed(t.date_tattooed));
-  const needsPro = activeTattoos.length >= 1 && !proStatus;
+  const isProGated = !proStatus && activeCount >= 1;
 
-  if (needsPro) {
-    return (
-      <View style={[commonStyles.container, styles.proGate]}>
-        <Text style={styles.proIcon}>⚡</Text>
-        <Text style={styles.proTitle}>Pro Required</Text>
-        <Text style={styles.proSubtitle}>
-          Free accounts can track 1 active tattoo at a time.{'\n'}
-          Upgrade to Pro to add unlimited tattoos.
-        </Text>
-        <View style={styles.proFeatures}>
-          {['Unlimited tattoos', 'Photo timeline per tattoo', 'Shareable portfolio cards', 'Custom reminder schedules'].map((f) => (
-            <View key={f} style={styles.proFeatureRow}>
-              <Feather name="check" size={14} color={COLORS.accent} />
-              <Text style={styles.proFeatureText}>{f}</Text>
-            </View>
-          ))}
-        </View>
-        <TouchableOpacity style={[commonStyles.button, { width: '100%' }]}>
-          <Text style={commonStyles.buttonText}>Upgrade to Pro — $3.99</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[commonStyles.buttonOutline, { width: '100%', marginTop: SPACING.sm }]}>
-          <Text style={commonStyles.buttonOutlineText}>$1.99 / month</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: SPACING.lg }}>
-          <Text style={styles.cancelText}>Maybe later</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const handlePickPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8, allowsEditing: true, aspect: [1, 1] });
+    if (!result.canceled && result.assets[0]) setThumbnail(result.assets[0].uri);
+  };
 
-  async function pickImage() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission required', 'Please allow photo access to add a thumbnail.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets?.[0]) {
-      setThumbnailUri(result.assets[0].uri);
-    }
-  }
-
-  async function handleSave() {
-    if (!name.trim()) {
-      Alert.alert('Required', 'Please enter a name for your tattoo.');
-      return;
-    }
-    if (!dateTattooed.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      Alert.alert('Invalid date', 'Enter date as YYYY-MM-DD (e.g. 2024-03-15).');
-      return;
-    }
+  const handleSave = async () => {
+    if (!name.trim()) return Alert.alert('Required', 'Please enter a tattoo name.');
+    if (!date.trim()) return Alert.alert('Required', 'Please enter the date tattooed (YYYY-MM-DD).');
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date.trim())) return Alert.alert('Invalid Date', 'Please use YYYY-MM-DD format (e.g. 2024-03-15).');
 
     setSaving(true);
     try {
       await addTattoo({
-        name: name.trim(),
-        placement: placement.trim() || null,
-        date_tattooed: dateTattooed,
-        artist_name: artistName.trim() || null,
-        artist_instagram: artistInstagram.trim().replace('@', '') || null,
-        shop_name: shopName.trim() || null,
-        style: style || null,
-        pain_rating: painRating || null,
-        notes: notes.trim() || null,
-        thumbnail_uri: thumbnailUri,
+        name: name.trim(), date_tattooed: date.trim(), placement: placement || null,
+        style: style || null, artist_name: artistName.trim() || null,
+        artist_instagram: artistInstagram.trim().replace(/^@/, '') || null,
+        shop_name: shopName.trim() || null, pain_rating: painRating || null,
+        notes: notes.trim() || null, thumbnail_uri: thumbnail || null,
       });
-
-      const isFirstTattoo = tattoos.length === 0;
-      if (isFirstTattoo) {
-        await scheduleMorningReminder();
-        await scheduleEveningReminder();
-      }
-
       await refreshTattoos();
+      await scheduleMorningReminder();
+      await scheduleEveningReminder();
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', 'Could not save tattoo. Please try again.');
     } finally {
       setSaving(false);
     }
+  };
+
+  if (isProGated) {
+    return (
+      <View style={[commonStyles.container, styles.gateContainer]}>
+        <View style={styles.gateCard}>
+          <Text style={styles.gateIcon}>⭐</Text>
+          <Text style={styles.gateTitle}>Upgrade to Pro</Text>
+          <Text style={styles.gateSubtitle}>
+            The free tier includes 1 active tattoo.{'\n'}Upgrade to track unlimited tattoos, view photo timelines, and share your portfolio.
+          </Text>
+          <View style={styles.gateFeatures}>
+            {['Unlimited tattoos', 'Photo timelines', 'Shareable portfolio cards', 'Custom reminders'].map((f) => (
+              <View key={f} style={styles.gateFeatureRow}>
+                <Feather name="check" size={14} color={COLORS.accent} />
+                <Text style={styles.gateFeatureText}>{f}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity style={styles.gateButtonPrimary} activeOpacity={0.85}>
+            <Text style={styles.gateButtonPrimaryText}>Get Pro — $3.99 one-time</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.gateButtonSecondary} activeOpacity={0.75}>
+            <Text style={styles.gateButtonSecondaryText}>$1.99 / month</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.gateBack}>Not now</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={commonStyles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Thumbnail */}
-        <TouchableOpacity style={styles.thumbnailPicker} onPress={pickImage}>
-          {thumbnailUri ? (
-            <Image source={{ uri: thumbnailUri }} style={styles.thumbnailImage} />
-          ) : (
-            <View style={styles.thumbnailPlaceholder}>
-              <Feather name="camera" size={28} color={COLORS.textMuted} />
-              <Text style={styles.thumbnailLabel}>Add Photo</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+    <KeyboardAvoidingView style={commonStyles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-        {/* Name */}
-        <Text style={commonStyles.label}>Tattoo Name *</Text>
-        <TextInput
-          style={commonStyles.input}
-          placeholder="e.g. Dragon Sleeve, Mom Rose..."
-          placeholderTextColor={COLORS.textMuted}
-          value={name}
-          onChangeText={setName}
-        />
+        {/* Photo */}
+        <View style={styles.photoSection}>
+          <TouchableOpacity style={styles.photoCircle} onPress={handlePickPhoto} activeOpacity={0.8}>
+            {thumbnail ? (
+              <Image source={{ uri: thumbnail }} style={styles.photoCircleImage} />
+            ) : (
+              <View style={styles.photoCirclePlaceholder}>
+                <Feather name="camera" size={24} color={COLORS.accent} />
+                <Text style={styles.photoCircleText}>Add Photo</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
-        {/* Placement */}
-        <Text style={[commonStyles.label, { marginTop: SPACING.md }]}>Placement</Text>
-        <TouchableOpacity
-          style={[commonStyles.input, styles.pickerRow]}
-          onPress={() => setShowPlacementPicker(true)}
-        >
-          <Text style={placement ? styles.pickerValue : styles.pickerPlaceholder}>
-            {placement || 'Select placement...'}
-          </Text>
-          <Feather name="chevron-down" size={16} color={COLORS.textMuted} />
-        </TouchableOpacity>
+        {/* Tattoo Info */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>TATTOO INFO</Text>
+          <View style={styles.card}>
+            <FormField label="Name" required>
+              <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g. Sleeve, Rose, Geometric" placeholderTextColor={COLORS.textMuted} />
+            </FormField>
+            <View style={styles.fieldDivider} />
+            <FormField label="Date Tattooed" required>
+              <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" />
+            </FormField>
+          </View>
+        </View>
 
-        {/* Date */}
-        <Text style={[commonStyles.label, { marginTop: SPACING.md }]}>Date Tattooed *</Text>
-        <TextInput
-          style={commonStyles.input}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={COLORS.textMuted}
-          value={dateTattooed}
-          onChangeText={setDateTattooed}
-          keyboardType="numbers-and-punctuation"
-          maxLength={10}
-        />
+        {/* Style & Placement */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>STYLE & PLACEMENT</Text>
+          <View style={styles.pickerRow}>
+            <TouchableOpacity style={styles.pickerButton} onPress={() => setStylePickerVisible(true)} activeOpacity={0.75}>
+              <Text style={[styles.pickerButtonText, !style && { color: COLORS.textMuted }]}>{style || 'Style'}</Text>
+              <Feather name="chevron-down" size={14} color={COLORS.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.pickerButton} onPress={() => setPlacementPickerVisible(true)} activeOpacity={0.75}>
+              <Text style={[styles.pickerButtonText, !placement && { color: COLORS.textMuted }]}>{placement || 'Placement'}</Text>
+              <Feather name="chevron-down" size={14} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-        {/* Style */}
-        <Text style={[commonStyles.label, { marginTop: SPACING.md }]}>Style</Text>
-        <TouchableOpacity
-          style={[commonStyles.input, styles.pickerRow]}
-          onPress={() => setShowStylePicker(true)}
-        >
-          <Text style={style ? styles.pickerValue : styles.pickerPlaceholder}>
-            {style || 'Select style...'}
-          </Text>
-          <Feather name="chevron-down" size={16} color={COLORS.textMuted} />
-        </TouchableOpacity>
-
-        {/* Artist */}
-        <Text style={[commonStyles.label, { marginTop: SPACING.md }]}>Artist Name</Text>
-        <TextInput
-          style={commonStyles.input}
-          placeholder="Artist's name"
-          placeholderTextColor={COLORS.textMuted}
-          value={artistName}
-          onChangeText={setArtistName}
-        />
-
-        <Text style={[commonStyles.label, { marginTop: SPACING.md }]}>Artist Instagram</Text>
-        <TextInput
-          style={commonStyles.input}
-          placeholder="@handle"
-          placeholderTextColor={COLORS.textMuted}
-          value={artistInstagram}
-          onChangeText={setArtistInstagram}
-          autoCapitalize="none"
-        />
-
-        <Text style={[commonStyles.label, { marginTop: SPACING.md }]}>Shop Name</Text>
-        <TextInput
-          style={commonStyles.input}
-          placeholder="Studio or shop name"
-          placeholderTextColor={COLORS.textMuted}
-          value={shopName}
-          onChangeText={setShopName}
-        />
+        {/* Artist Info */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>ARTIST INFO</Text>
+          <View style={styles.card}>
+            <FormField label="Artist Name">
+              <TextInput style={styles.input} value={artistName} onChangeText={setArtistName} placeholder="Artist name" placeholderTextColor={COLORS.textMuted} />
+            </FormField>
+            <View style={styles.fieldDivider} />
+            <FormField label="Instagram">
+              <TextInput style={styles.input} value={artistInstagram} onChangeText={setArtistInstagram} placeholder="@handle" placeholderTextColor={COLORS.textMuted} autoCapitalize="none" />
+            </FormField>
+            <View style={styles.fieldDivider} />
+            <FormField label="Shop Name">
+              <TextInput style={styles.input} value={shopName} onChangeText={setShopName} placeholder="Shop name" placeholderTextColor={COLORS.textMuted} />
+            </FormField>
+          </View>
+        </View>
 
         {/* Pain Rating */}
-        <Text style={[commonStyles.label, { marginTop: SPACING.md }]}>Pain Rating</Text>
-        <View style={styles.painRow}>
-          {[1,2,3,4,5,6,7,8,9,10].map((n) => (
-            <TouchableOpacity
-              key={n}
-              style={[styles.painDot, painRating >= n && styles.painDotActive]}
-              onPress={() => setPainRating(n === painRating ? 0 : n)}
-            >
-              <Text style={[styles.painNum, painRating >= n && styles.painNumActive]}>
-                {n}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>PAIN RATING</Text>
+          <View style={styles.card}>
+            <Text style={styles.fieldLabel}>How painful was it? (1–10)</Text>
+            <View style={styles.dotsRow}>
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                <TouchableOpacity
+                  key={n} style={[styles.dot, painRating >= n && styles.dotActive]}
+                  onPress={() => setPainRating(n === painRating ? 0 : n)} activeOpacity={0.7}
+                >
+                  <Text style={[styles.dotText, painRating >= n && styles.dotTextActive]}>{n}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         </View>
-        {painRating > 0 && (
-          <Text style={styles.painLabel}>
-            {painRating <= 3 ? 'Low — barely felt it' : painRating <= 6 ? 'Moderate — manageable' : painRating <= 8 ? 'High — intense' : 'Extreme — brutal placement'}
-          </Text>
-        )}
 
         {/* Notes */}
-        <Text style={[commonStyles.label, { marginTop: SPACING.md }]}>Notes</Text>
-        <TextInput
-          style={[commonStyles.input, styles.notesInput]}
-          placeholder="Session notes, aftercare instructions from artist, etc."
-          placeholderTextColor={COLORS.textMuted}
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>NOTES</Text>
+          <TextInput
+            style={styles.notesInput} value={notes} onChangeText={setNotes}
+            placeholder="Anything to remember about this session..." placeholderTextColor={COLORS.textMuted}
+            multiline numberOfLines={4} textAlignVertical="top"
+          />
+        </View>
 
-        <TouchableOpacity
-          style={[commonStyles.button, { marginTop: SPACING.xl }]}
-          onPress={handleSave}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#000" />
-          ) : (
-            <Text style={commonStyles.buttonText}>Save Tattoo</Text>
-          )}
+        <TouchableOpacity style={[styles.saveButton, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
+          <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Add Tattoo'}</Text>
         </TouchableOpacity>
-
-        <View style={{ height: SPACING.xxl }} />
       </ScrollView>
 
-      {/* Style Picker Modal */}
-      <Modal visible={showStylePicker} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Style</Text>
-              <TouchableOpacity onPress={() => setShowStylePicker(false)}>
-                <Feather name="x" size={20} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView>
-              {STYLES.map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  style={[styles.modalOption, s === style && styles.modalOptionActive]}
-                  onPress={() => { setStyle(s); setShowStylePicker(false); }}
-                >
-                  <Text style={[styles.modalOptionText, s === style && styles.modalOptionTextActive]}>{s}</Text>
-                  {s === style && <Feather name="check" size={16} color={COLORS.accent} />}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      {/* Style picker modal */}
+      <PickerModal visible={stylePickerVisible} title="Style" options={STYLES} selected={style}
+        onSelect={(v) => { setStyle(v); setStylePickerVisible(false); }}
+        onClose={() => setStylePickerVisible(false)} />
 
-      {/* Placement Picker Modal */}
-      <Modal visible={showPlacementPicker} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Placement</Text>
-              <TouchableOpacity onPress={() => setShowPlacementPicker(false)}>
-                <Feather name="x" size={20} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView>
-              {PLACEMENTS.map((p) => (
-                <TouchableOpacity
-                  key={p}
-                  style={[styles.modalOption, p === placement && styles.modalOptionActive]}
-                  onPress={() => { setPlacement(p); setShowPlacementPicker(false); }}
-                >
-                  <Text style={[styles.modalOptionText, p === placement && styles.modalOptionTextActive]}>{p}</Text>
-                  {p === placement && <Feather name="check" size={16} color={COLORS.accent} />}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      {/* Placement picker modal */}
+      <PickerModal visible={placementPickerVisible} title="Placement" options={PLACEMENTS} selected={placement}
+        onSelect={(v) => { setPlacement(v); setPlacementPickerVisible(false); }}
+        onClose={() => setPlacementPickerVisible(false)} />
     </KeyboardAvoidingView>
   );
 }
 
+function FormField({ label, required, children }) {
+  return (
+    <View style={{ gap: 4 }}>
+      <Text style={styles.fieldLabel}>{label}{required ? ' *' : ''}</Text>
+      {children}
+    </View>
+  );
+}
+
+function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
+        <View style={styles.modalSheet}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Feather name="x" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {options.map((opt) => (
+              <TouchableOpacity key={opt} style={[styles.modalOption, selected === opt && styles.modalOptionActive]} onPress={() => onSelect(opt)} activeOpacity={0.7}>
+                <Text style={[styles.modalOptionText, selected === opt && styles.modalOptionTextActive]}>{opt}</Text>
+                {selected === opt && <Feather name="check" size={16} color={COLORS.accent} />}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
-  content: {
-    padding: SPACING.lg,
-  },
-  thumbnailPicker: {
-    alignSelf: 'center',
-    marginBottom: SPACING.xl,
-  },
-  thumbnailImage: {
-    width: 120,
-    height: 120,
-    borderRadius: RADIUS.lg,
-  },
-  thumbnailPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.card,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-  },
-  thumbnailLabel: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
-  },
-  pickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pickerValue: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.md,
-  },
-  pickerPlaceholder: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.md,
-  },
-  painRow: {
-    flexDirection: 'row',
-    gap: 6,
-    flexWrap: 'wrap',
-  },
-  painDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.surface,
-  },
-  painDotActive: {
-    backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
-  },
-  painNum: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
-    fontWeight: FONTS.weights.semibold,
-  },
-  painNumActive: {
-    color: '#000',
-  },
-  painLabel: {
-    color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.xs,
-    marginTop: 4,
-  },
-  notesInput: {
-    height: 100,
-    paddingTop: SPACING.md,
-  },
-  proGate: {
-    padding: SPACING.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.md,
-  },
-  proIcon: {
-    fontSize: 48,
-  },
-  proTitle: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.xxl,
-    fontWeight: FONTS.weights.bold,
-  },
-  proSubtitle: {
-    color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.sm,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  proFeatures: {
-    alignSelf: 'stretch',
-    gap: SPACING.sm,
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-  },
-  proFeatureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  proFeatureText: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.sm,
-  },
-  cancelText: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.sm,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
-    maxHeight: '70%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  modalTitle: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: FONTS.weights.semibold,
-  },
-  modalOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  modalOptionActive: {
-    backgroundColor: COLORS.accent + '15',
-  },
-  modalOptionText: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.md,
-  },
-  modalOptionTextActive: {
-    color: COLORS.accent,
-    fontWeight: FONTS.weights.semibold,
-  },
+  scrollContent: { paddingBottom: 120 },
+  photoSection: { alignItems: 'center', paddingVertical: SPACING.xl },
+  photoCircle: { width: 120, height: 120, borderRadius: 60, overflow: 'hidden' },
+  photoCircleImage: { width: '100%', height: '100%' },
+  photoCirclePlaceholder: { width: '100%', height: '100%', backgroundColor: COLORS.card, borderWidth: 2, borderColor: COLORS.accentBorder, borderStyle: 'dashed', borderRadius: 60, alignItems: 'center', justifyContent: 'center', gap: SPACING.xs },
+  photoCircleText: { color: COLORS.accent, fontSize: 11, fontWeight: '600' },
+  section: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.xl },
+  sectionLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: SPACING.sm },
+  card: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm },
+  fieldDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: SPACING.xs },
+  fieldLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '600', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 4 },
+  input: { color: COLORS.textPrimary, fontSize: 15, paddingVertical: SPACING.sm },
+  pickerRow: { flexDirection: 'row', gap: SPACING.sm },
+  pickerButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: SPACING.md, paddingVertical: SPACING.lg },
+  pickerButtonText: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '500' },
+  dotsRow: { flexDirection: 'row', gap: 6, marginTop: SPACING.sm },
+  dot: { width: 26, height: 26, borderRadius: RADIUS.full, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  dotActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  dotText: { color: COLORS.textMuted, fontSize: 10, fontWeight: '700' },
+  dotTextActive: { color: COLORS.textInverse },
+  notesInput: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border, color: COLORS.textPrimary, fontSize: 15, padding: SPACING.md, minHeight: 90 },
+  saveButton: { marginHorizontal: SPACING.lg, backgroundColor: COLORS.accent, borderRadius: RADIUS.md, paddingVertical: SPACING.lg, alignItems: 'center', ...SHADOWS.gold },
+  saveButtonText: { color: COLORS.textInverse, fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalSheet: { backgroundColor: COLORS.surface, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, paddingBottom: 40, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SPACING.lg, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  modalTitle: { ...FONTS.headingMedium },
+  modalOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
+  modalOptionActive: { backgroundColor: COLORS.accentMuted },
+  modalOptionText: { color: COLORS.textSecondary, fontSize: 15 },
+  modalOptionTextActive: { color: COLORS.accent, fontWeight: '600' },
+  gateContainer: { justifyContent: 'center', alignItems: 'center', padding: SPACING.lg },
+  gateCard: { backgroundColor: COLORS.card, borderRadius: RADIUS.xl, padding: SPACING.xxl, alignItems: 'center', borderWidth: 1, borderColor: COLORS.accentBorder, gap: SPACING.md, width: '100%' },
+  gateIcon: { fontSize: 40 },
+  gateTitle: { ...FONTS.headingLarge },
+  gateSubtitle: { ...FONTS.body, textAlign: 'center' },
+  gateFeatures: { width: '100%', gap: SPACING.sm, marginVertical: SPACING.sm },
+  gateFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  gateFeatureText: { color: COLORS.textSecondary, fontSize: 14 },
+  gateButtonPrimary: { width: '100%', backgroundColor: COLORS.accent, borderRadius: RADIUS.md, paddingVertical: SPACING.lg, alignItems: 'center', ...SHADOWS.gold },
+  gateButtonPrimaryText: { color: COLORS.textInverse, fontSize: 15, fontWeight: '700' },
+  gateButtonSecondary: { width: '100%', borderWidth: 1, borderColor: COLORS.accentBorder, borderRadius: RADIUS.md, paddingVertical: SPACING.md, alignItems: 'center' },
+  gateButtonSecondaryText: { color: COLORS.accent, fontSize: 14, fontWeight: '600' },
+  gateBack: { color: COLORS.textMuted, fontSize: 13, marginTop: SPACING.sm },
 });

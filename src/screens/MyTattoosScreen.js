@@ -1,322 +1,215 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-  Image,
-  ActivityIndicator,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  Image, Alert, RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { format, parseISO } from 'date-fns';
-import { COLORS, FONTS, SPACING, RADIUS, commonStyles } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, commonStyles } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 import { deleteTattoo } from '../database/db';
-import { isHealed, getStage, getStageInfo } from '../utils/healingStages';
-import { cancelTouchupReminder } from '../utils/notifications';
+import { getStage, getStageInfo, isHealed, getDayNumber } from '../utils/healingStages';
+
+const FILTERS = ['All', 'Healing', 'Healed'];
 
 export default function MyTattoosScreen({ navigation }) {
   const { tattoos, refreshTattoos } = useApp();
-  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState('All');
+  const [refreshing, setRefreshing] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      refreshTattoos();
-    }, [])
-  );
+  useFocusEffect(useCallback(() => { refreshTattoos(); }, []));
 
-  const healingTattoos = tattoos.filter((t) => !isHealed(t.date_tattooed));
-  const healedTattoos = tattoos.filter((t) => isHealed(t.date_tattooed));
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshTattoos();
+    setRefreshing(false);
+  }, []);
 
-  const handleDelete = useCallback(
-    (tattoo) => {
-      Alert.alert(
-        'Delete Tattoo',
-        `Are you sure you want to delete "${tattoo.name}"? This will also delete all care logs and photos. This cannot be undone.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await cancelTouchupReminder(tattoo.id);
-                await deleteTattoo(tattoo.id);
-                await refreshTattoos();
-              } catch (error) {
-                Alert.alert('Error', 'Could not delete tattoo. Please try again.');
-              }
-            },
+  const handleDelete = (tattoo) => {
+    Alert.alert(
+      'Delete Tattoo',
+      `Remove "${tattoo.name}" and all its care logs and photos? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive',
+          onPress: async () => {
+            await deleteTattoo(tattoo.id);
+            await refreshTattoos();
           },
-        ]
-      );
-    },
-    [refreshTattoos]
-  );
-
-  const renderTattooItem = ({ item: tattoo, isHealed: healed }) => {
-    const stageKey = getStage(tattoo.date_tattooed);
-    const stageInfo = getStageInfo(stageKey);
-
-    let formattedDate = '';
-    try {
-      formattedDate = format(parseISO(tattoo.date_tattooed), 'MMM d, yyyy');
-    } catch {
-      formattedDate = tattoo.date_tattooed;
-    }
-
-    return (
-      <TouchableOpacity
-        style={styles.tattooItem}
-        onPress={() => navigation.navigate('TattooDetail', { tattooId: tattoo.id })}
-        activeOpacity={0.8}
-      >
-        <View style={styles.itemLeft}>
-          {tattoo.thumbnail_uri ? (
-            <Image source={{ uri: tattoo.thumbnail_uri }} style={styles.thumbnail} />
-          ) : (
-            <View style={styles.thumbnailPlaceholder}>
-              <Feather name="image" size={18} color={COLORS.textMuted} />
-            </View>
-          )}
-        </View>
-
-        <View style={styles.itemContent}>
-          <View style={styles.itemHeader}>
-            <Text style={styles.itemName} numberOfLines={1}>{tattoo.name}</Text>
-            {!healed && (
-              <View style={[styles.stageBadge, { backgroundColor: stageInfo.color + '22', borderColor: stageInfo.color }]}>
-                <Text style={[styles.stageText, { color: stageInfo.color }]}>{stageInfo.name}</Text>
-              </View>
-            )}
-            {healed && (
-              <View style={styles.healedBadge}>
-                <Feather name="check-circle" size={12} color={COLORS.info} />
-                <Text style={styles.healedBadgeText}>Healed</Text>
-              </View>
-            )}
-          </View>
-
-          {tattoo.placement ? (
-            <Text style={styles.itemDetail} numberOfLines={1}>{tattoo.placement}</Text>
-          ) : null}
-
-          {tattoo.artist_name ? (
-            <Text style={styles.itemDetail} numberOfLines={1}>by {tattoo.artist_name}</Text>
-          ) : null}
-
-          <View style={styles.itemFooter}>
-            {tattoo.style ? (
-              <View style={styles.styleChip}>
-                <Text style={styles.styleText}>{tattoo.style}</Text>
-              </View>
-            ) : null}
-            <Text style={styles.dateText}>{formattedDate}</Text>
-          </View>
-
-          {healed && (
-            <TouchableOpacity
-              style={styles.portfolioBadge}
-              onPress={() => navigation.navigate('Portfolio')}
-            >
-              <Feather name="image" size={11} color={COLORS.info} />
-              <Text style={styles.portfolioText}>View in Portfolio</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <View style={styles.itemActions}>
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            onPress={() => handleDelete(tattoo)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="trash-2" size={16} color={COLORS.danger} />
-          </TouchableOpacity>
-          <Feather name="chevron-right" size={16} color={COLORS.textMuted} />
-        </View>
-      </TouchableOpacity>
+        },
+      ]
     );
   };
 
-  const allSections = [];
-  if (healingTattoos.length > 0) {
-    allSections.push({ type: 'header', title: 'Healing' });
-    healingTattoos.forEach((t) => allSections.push({ type: 'tattoo', tattoo: t, isHealed: false }));
-  }
-  if (healedTattoos.length > 0) {
-    allSections.push({ type: 'header', title: 'Healed' });
-    healedTattoos.forEach((t) => allSections.push({ type: 'tattoo', tattoo: t, isHealed: true }));
-  }
+  const filtered = tattoos.filter((t) => {
+    if (filter === 'Healing') return !isHealed(t.date_tattooed);
+    if (filter === 'Healed') return isHealed(t.date_tattooed);
+    return true;
+  });
 
-  if (loading) {
-    return (
-      <View style={[commonStyles.container, styles.center]}>
-        <ActivityIndicator color={COLORS.accent} size="large" />
-      </View>
-    );
-  }
+  const healing = filtered.filter((t) => !isHealed(t.date_tattooed));
+  const healed = filtered.filter((t) => isHealed(t.date_tattooed));
 
   return (
     <View style={commonStyles.container}>
-      {tattoos.length === 0 ? (
-        <View style={commonStyles.emptyState}>
-          <Feather name="layers" size={48} color={COLORS.textMuted} />
-          <Text style={styles.emptyTitle}>No tattoos yet</Text>
-          <Text style={commonStyles.emptyStateText}>
-            Add your first tattoo to start tracking your healing journey.
-          </Text>
-          <TouchableOpacity
-            style={[commonStyles.button, { marginTop: SPACING.md }]}
-            onPress={() => navigation.navigate('AddTattoo')}
-          >
-            <Text style={commonStyles.buttonText}>Add Tattoo</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={allSections}
-          keyExtractor={(item, index) =>
-            item.type === 'header' ? `header-${item.title}` : `tattoo-${item.tattoo.id}`
-          }
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => {
-            if (item.type === 'header') {
-              return <Text style={commonStyles.sectionHeader}>{item.title}</Text>;
-            }
-            return renderTattooItem({ item: item.tattoo, isHealed: item.isHealed });
-          }}
-        />
-      )}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />}
+        showsVerticalScrollIndicator={false}
+      >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterContent}>
+          {FILTERS.map((f) => (
+            <TouchableOpacity
+              key={f}
+              style={[styles.filterChip, filter === f && styles.filterChipActive]}
+              onPress={() => setFilter(f)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.filterChipText, filter === f && styles.filterChipTextActive]}>{f}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {tattoos.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>🖊️</Text>
+            <Text style={styles.emptyTitle}>No tattoos yet</Text>
+            <Text style={styles.emptySubtitle}>Add your first tattoo to start tracking your healing journey.</Text>
+            <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate('AddTattoo')}>
+              <Text style={styles.emptyButtonText}>Add Tattoo</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {(filter === 'All' || filter === 'Healing') && healing.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>HEALING ({healing.length})</Text>
+                {healing.map((tattoo) => (
+                  <TattooRow key={tattoo.id} tattoo={tattoo}
+                    onPress={() => navigation.navigate('TattooDetail', { tattooId: tattoo.id })}
+                    onDelete={() => handleDelete(tattoo)} />
+                ))}
+              </View>
+            )}
+            {(filter === 'All' || filter === 'Healed') && healed.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>HEALED ({healed.length})</Text>
+                {healed.map((tattoo) => (
+                  <TattooRow key={tattoo.id} tattoo={tattoo} healed
+                    onPress={() => navigation.navigate('TattooDetail', { tattooId: tattoo.id })}
+                    onDelete={() => handleDelete(tattoo)} />
+                ))}
+              </View>
+            )}
+            {filtered.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptySubtitle}>No tattoos in this category.</Text>
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
+function TattooRow({ tattoo, onPress, onDelete, healed: isHealedProp }) {
+  const stageKey = getStage(tattoo.date_tattooed);
+  const stageInfo = getStageInfo(stageKey);
+  const day = getDayNumber(tattoo.date_tattooed);
+  let dateStr = '';
+  try { dateStr = format(parseISO(tattoo.date_tattooed), 'MMM d, yyyy'); } catch { dateStr = tattoo.date_tattooed; }
+
+  return (
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.75}>
+      <View style={styles.thumb}>
+        {tattoo.thumbnail_uri ? (
+          <Image source={{ uri: tattoo.thumbnail_uri }} style={styles.thumbImage} />
+        ) : (
+          <View style={styles.thumbPlaceholder}>
+            <Text style={styles.thumbInitial}>{tattoo.name?.[0]?.toUpperCase() || '?'}</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.rowContent}>
+        <View style={styles.rowTop}>
+          <Text style={styles.rowName} numberOfLines={1}>{tattoo.name}</Text>
+          {isHealedProp ? (
+            <View style={styles.healedBadge}>
+              <Text style={styles.healedBadgeText}>HEALED</Text>
+            </View>
+          ) : (
+            <View style={[styles.stageBadge, { backgroundColor: stageInfo.color + '22', borderColor: stageInfo.color + '55' }]}>
+              <Text style={[styles.stageBadgeText, { color: stageInfo.color }]}>{stageInfo.name.toUpperCase()}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.rowMeta} numberOfLines={1}>
+          {tattoo.placement ? `${tattoo.placement}  ·  ` : ''}
+          {tattoo.artist_name ? `by ${tattoo.artist_name}` : dateStr}
+        </Text>
+        <View style={styles.rowBottom}>
+          {tattoo.style && (
+            <View style={styles.styleChip}>
+              <Text style={styles.styleChipText}>{tattoo.style}</Text>
+            </View>
+          )}
+          {!isHealedProp && <Text style={styles.dayText}>Day {day}</Text>}
+          {isHealedProp && <Text style={styles.dateText}>{dateStr}</Text>}
+        </View>
+      </View>
+      <TouchableOpacity style={styles.deleteBtn} onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <Feather name="trash-2" size={15} color={COLORS.textMuted} />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  center: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  scrollContent: { paddingBottom: 100 },
+  filterBar: { marginBottom: SPACING.lg },
+  filterContent: { paddingHorizontal: SPACING.lg, gap: SPACING.sm },
+  filterChip: {
+    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border,
   },
-  listContent: {
-    padding: SPACING.lg,
-    paddingBottom: 32,
+  filterChipActive: { backgroundColor: COLORS.accentMuted, borderColor: COLORS.accentBorder },
+  filterChipText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
+  filterChipTextActive: { color: COLORS.accent },
+  section: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.xl },
+  sectionLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: SPACING.sm },
+  row: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.card,
+    borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.sm,
+    borderWidth: 1, borderColor: COLORS.border, gap: SPACING.md, ...SHADOWS.card,
   },
-  tattooItem: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-    alignItems: 'center',
+  thumb: { width: 60, height: 60, borderRadius: RADIUS.md, overflow: 'hidden' },
+  thumbImage: { width: '100%', height: '100%' },
+  thumbPlaceholder: {
+    width: '100%', height: '100%', backgroundColor: COLORS.surface,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.accentBorder,
   },
-  itemLeft: {
-    marginRight: SPACING.md,
-  },
-  thumbnail: {
-    width: 60,
-    height: 60,
-    borderRadius: RADIUS.md,
-  },
-  thumbnailPlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  itemContent: {
-    flex: 1,
-    gap: 4,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    flexWrap: 'wrap',
-  },
-  itemName: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.md,
-    fontWeight: FONTS.weights.semibold,
-    flex: 1,
-  },
-  stageBadge: {
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  stageText: {
-    fontSize: FONTS.sizes.xs,
-    fontWeight: FONTS.weights.semibold,
-  },
-  healedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: COLORS.info + '20',
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  healedBadgeText: {
-    color: COLORS.info,
-    fontSize: FONTS.sizes.xs,
-    fontWeight: FONTS.weights.semibold,
-  },
-  itemDetail: {
-    color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.sm,
-  },
-  itemFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    marginTop: 2,
-  },
-  styleChip: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  styleText: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
-  },
-  dateText: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
-  },
-  portfolioBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-  },
-  portfolioText: {
-    color: COLORS.info,
-    fontSize: FONTS.sizes.xs,
-    fontWeight: FONTS.weights.medium,
-  },
-  itemActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    marginLeft: SPACING.sm,
-  },
-  deleteBtn: {
-    padding: 4,
-  },
-  emptyTitle: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: FONTS.weights.semibold,
-    marginTop: SPACING.md,
-  },
+  thumbInitial: { color: COLORS.accent, fontSize: 22, fontWeight: '700' },
+  rowContent: { flex: 1, gap: 4 },
+  rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm },
+  rowName: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700', flex: 1 },
+  stageBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: RADIUS.full, borderWidth: 1 },
+  stageBadgeText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.6 },
+  healedBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: RADIUS.full, backgroundColor: COLORS.successMuted, borderWidth: 1, borderColor: COLORS.success + '44' },
+  healedBadgeText: { color: COLORS.success, fontSize: 9, fontWeight: '700', letterSpacing: 0.6 },
+  rowMeta: { color: COLORS.textMuted, fontSize: 12 },
+  rowBottom: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  styleChip: { backgroundColor: COLORS.surface, borderRadius: RADIUS.full, paddingHorizontal: 7, paddingVertical: 2, borderWidth: 1, borderColor: COLORS.borderLight },
+  styleChipText: { color: COLORS.textMuted, fontSize: 10, fontWeight: '600' },
+  dayText: { color: COLORS.accent, fontSize: 11, fontWeight: '600' },
+  dateText: { color: COLORS.textMuted, fontSize: 11 },
+  deleteBtn: { padding: SPACING.sm },
+  emptyState: { alignItems: 'center', paddingVertical: SPACING.xxxl * 2, paddingHorizontal: SPACING.xxl, gap: SPACING.md },
+  emptyIcon: { fontSize: 48 },
+  emptyTitle: { ...FONTS.headingLarge, textAlign: 'center' },
+  emptySubtitle: { ...FONTS.body, textAlign: 'center' },
+  emptyButton: { backgroundColor: COLORS.accent, borderRadius: RADIUS.md, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl, marginTop: SPACING.sm, ...SHADOWS.gold },
+  emptyButtonText: { color: COLORS.textInverse, fontSize: 14, fontWeight: '700' },
 });

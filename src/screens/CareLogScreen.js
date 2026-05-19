@@ -1,489 +1,333 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  TextInput, Alert, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import { format, parseISO, subDays, isToday } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
-import { format, subDays, isToday, parseISO } from 'date-fns';
-import { COLORS, FONTS, SPACING, RADIUS, commonStyles } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, commonStyles } from '../constants/theme';
 import { useApp } from '../context/AppContext';
-import {
-  getCareLogForDate, addCareLog, updateCareLog,
-  getCareLogsForTattoo, addPhoto,
-} from '../database/db';
-import { calculateHealthStatus, getDayNumber, isHealed } from '../utils/healingStages';
+import { isHealed, getStage, calculateHealthStatus } from '../utils/healingStages';
+import { getCareLogForDate, addCareLog, updateCareLog, getCareLogsForTattoo, addPhoto } from '../database/db';
 
-function CheckRow({ label, checked, onToggle, variant = 'normal' }) {
-  const color = variant === 'warning' ? COLORS.warning : variant === 'danger' ? COLORS.danger : COLORS.accent;
-  return (
-    <TouchableOpacity style={styles.checkRow} onPress={onToggle} activeOpacity={0.7}>
-      <View style={[styles.checkbox, { borderColor: checked ? color : COLORS.border, backgroundColor: checked ? color : 'transparent' }]}>
-        {checked && <Feather name="check" size={12} color={variant === 'normal' ? '#000' : '#fff'} />}
-      </View>
-      <Text style={[styles.checkLabel, variant === 'danger' && styles.checkLabelDanger, variant === 'warning' && styles.checkLabelWarning]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
+const today = format(new Date(), 'yyyy-MM-dd');
 
-function MiniCalendar({ logs }) {
-  const days = Array.from({ length: 7 }, (_, i) => {
+function getLast7Days() {
+  return Array.from({ length: 7 }, (_, i) => {
     const d = subDays(new Date(), 6 - i);
-    const dateStr = format(d, 'yyyy-MM-dd');
-    const log = logs.find((l) => l.log_date === dateStr);
-    const hasLog = log && (log.washed || log.moisturized);
-    const isFuture = d > new Date();
-    return { dateStr, label: format(d, 'EEE'), dayNum: format(d, 'd'), hasLog, isFuture, isToday: isToday(d) };
+    return { date: format(d, 'yyyy-MM-dd'), label: format(d, 'EEE')[0], isToday: isToday(d) };
   });
-
-  return (
-    <View style={styles.calendar}>
-      {days.map((day) => (
-        <View key={day.dateStr} style={styles.calDay}>
-          <Text style={styles.calDayLabel}>{day.label}</Text>
-          <View style={[
-            styles.calDot,
-            day.isToday && styles.calDotToday,
-            !day.isFuture && day.hasLog && styles.calDotLogged,
-            !day.isFuture && !day.hasLog && styles.calDotMissed,
-          ]}>
-            <Text style={[styles.calDayNum, day.isToday && styles.calDayNumToday]}>
-              {day.dayNum}
-            </Text>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
 }
 
-export default function CareLogScreen() {
-  const { activeTattoos, refreshStreak } = useApp();
-  const [selectedTattooIndex, setSelectedTattooIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [recentLogs, setRecentLogs] = useState([]);
-  const [existingLogId, setExistingLogId] = useState(null);
+export default function CareLogScreen({ navigation }) {
+  const { tattoos, refreshStreak } = useApp();
+  const activeTattoos = tattoos.filter((t) => !isHealed(t.date_tattooed));
 
-  const today = format(new Date(), 'yyyy-MM-dd');
-
-  const [washed, setWashed] = useState(false);
-  const [moisturized, setMoisturized] = useState(false);
-  const [peeling, setPeeling] = useState(false);
-  const [itching, setItching] = useState(false);
-  const [redness, setRedness] = useState(false);
-  const [swelling, setSwelling] = useState(false);
-  const [discharge, setDischarge] = useState(false);
-  const [fever, setFever] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const [log, setLog] = useState({ washed: false, moisturized: false, peeling: false, itching: false, redness: false, swelling: false, discharge: false, fever: false });
   const [notes, setNotes] = useState('');
+  const [photo, setPhoto] = useState(null);
+  const [existingLogId, setExistingLogId] = useState(null);
+  const [weekLogs, setWeekLogs] = useState({});
+  const [saving, setSaving] = useState(false);
 
-  const selectedTattoo = activeTattoos[selectedTattooIndex];
-  const healthStatus = calculateHealthStatus({ discharge, fever, redness, swelling });
+  const selectedTattoo = activeTattoos.find((t) => t.id === selectedId) || activeTattoos[0];
 
-  const loadLog = useCallback(async () => {
-    if (!selectedTattoo) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const log = await getCareLogForDate(selectedTattoo.id, today);
-      const logs = await getCareLogsForTattoo(selectedTattoo.id);
-      setRecentLogs(logs.slice(0, 7));
-
-      if (log) {
-        setExistingLogId(log.id);
-        setWashed(!!log.washed);
-        setMoisturized(!!log.moisturized);
-        setPeeling(!!log.peeling);
-        setItching(!!log.itching);
-        setRedness(!!log.redness);
-        setSwelling(!!log.swelling);
-        setDischarge(!!log.discharge);
-        setFever(!!log.fever);
-        setNotes(log.notes || '');
-      } else {
-        setExistingLogId(null);
-        setWashed(false); setMoisturized(false); setPeeling(false);
-        setItching(false); setRedness(false); setSwelling(false);
-        setDischarge(false); setFever(false); setNotes('');
-      }
-    } catch (e) {
-      console.warn('loadLog error:', e);
-    } finally {
-      setLoading(false);
+  useFocusEffect(useCallback(() => {
+    if (activeTattoos.length > 0 && !selectedId) {
+      setSelectedId(activeTattoos[0].id);
     }
-  }, [selectedTattoo, today]);
+  }, [tattoos]));
 
-  useFocusEffect(useCallback(() => { loadLog(); }, [loadLog]));
-  useEffect(() => { loadLog(); }, [selectedTattooIndex]);
+  useEffect(() => {
+    if (selectedTattoo) loadLog(selectedTattoo.id);
+  }, [selectedTattoo?.id]);
 
-  async function handleSave() {
+  const loadLog = async (tattooId) => {
+    const existing = await getCareLogForDate(tattooId, today);
+    if (existing) {
+      setExistingLogId(existing.id);
+      setLog({
+        washed: existing.washed === 1, moisturized: existing.moisturized === 1,
+        peeling: existing.peeling === 1, itching: existing.itching === 1,
+        redness: existing.redness === 1, swelling: existing.swelling === 1,
+        discharge: existing.discharge === 1, fever: existing.fever === 1,
+      });
+      setNotes(existing.notes || '');
+      setPhoto(existing.photo_uri || null);
+    } else {
+      setExistingLogId(null);
+      setLog({ washed: false, moisturized: false, peeling: false, itching: false, redness: false, swelling: false, discharge: false, fever: false });
+      setNotes('');
+      setPhoto(null);
+    }
+
+    const all = await getCareLogsForTattoo(tattooId);
+    const map = {};
+    all.forEach((l) => { map[l.log_date] = l; });
+    setWeekLogs(map);
+  };
+
+  const toggle = (key) => setLog((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const healthStatus = calculateHealthStatus(log);
+
+  const handlePickPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+    if (!result.canceled && result.assets[0]) setPhoto(result.assets[0].uri);
+  };
+
+  const handleSave = async () => {
     if (!selectedTattoo) return;
     setSaving(true);
     try {
       const data = {
-        tattoo_id: selectedTattoo.id,
-        log_date: today,
-        washed, moisturized, peeling, itching,
-        redness, swelling, discharge, fever,
-        notes: notes.trim() || null,
-        health_status: healthStatus,
+        tattoo_id: selectedTattoo.id, log_date: today,
+        washed: log.washed ? 1 : 0, moisturized: log.moisturized ? 1 : 0,
+        peeling: log.peeling ? 1 : 0, itching: log.itching ? 1 : 0,
+        redness: log.redness ? 1 : 0, swelling: log.swelling ? 1 : 0,
+        discharge: log.discharge ? 1 : 0, fever: log.fever ? 1 : 0,
+        notes, health_status: healthStatus, photo_uri: photo || null,
       };
-
       if (existingLogId) {
         await updateCareLog(existingLogId, data);
       } else {
         const newId = await addCareLog(data);
         setExistingLogId(newId);
+        if (photo) {
+          const day = Math.max(1, Math.round((new Date() - parseISO(selectedTattoo.date_tattooed)) / 86400000) + 1);
+          await addPhoto({ tattoo_id: selectedTattoo.id, uri: photo, taken_date: today, day_number: day });
+        }
       }
-
       await refreshStreak();
-      await loadLog();
-      Alert.alert('Saved', "Today's care log has been saved.");
+      await loadLog(selectedTattoo.id);
+      Alert.alert('Saved', healthStatus === 'doctor' ? '⚠️ Please consult a doctor about your symptoms.' : healthStatus === 'attention' ? 'Keep an eye on your tattoo.' : 'Keep up the great care!');
     } catch (e) {
-      Alert.alert('Error', 'Could not save care log. Please try again.');
+      Alert.alert('Error', 'Could not save log.');
     } finally {
       setSaving(false);
     }
-  }
-
-  async function handleAddPhoto() {
-    if (!selectedTattoo) return;
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission required', 'Please allow photo access.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
-    });
-    if (!result.canceled && result.assets?.[0]) {
-      const dayNum = getDayNumber(selectedTattoo.date_tattooed);
-      await addPhoto({
-        tattoo_id: selectedTattoo.id,
-        uri: result.assets[0].uri,
-        taken_date: today,
-        day_number: dayNum,
-      });
-      Alert.alert('Photo added', `Day ${dayNum} photo saved to your timeline.`);
-    }
-  }
-
-  const healthConfig = {
-    good: { color: COLORS.success, icon: 'check-circle', label: 'Healing Well', sub: 'Looking good — keep up the routine.' },
-    attention: { color: COLORS.warning, icon: 'alert-triangle', label: 'Needs Attention', sub: 'Monitor closely. If it worsens, see a doctor.' },
-    doctor: { color: COLORS.danger, icon: 'alert-octagon', label: 'See a Doctor', sub: 'Signs of possible infection. Do not wait.' },
   };
-  const hc = healthConfig[healthStatus];
+
+  const last7 = getLast7Days();
+
+  const statusConfig = {
+    good: { color: COLORS.success, bg: COLORS.successMuted, border: COLORS.success + '44', icon: 'check-circle', label: 'Healing Well' },
+    attention: { color: COLORS.warning, bg: COLORS.warningMuted, border: COLORS.warning + '44', icon: 'alert-triangle', label: 'Needs Attention — monitor closely' },
+    doctor: { color: COLORS.danger, bg: COLORS.dangerMuted, border: COLORS.danger + '44', icon: 'alert-octagon', label: 'See a Doctor — signs of infection' },
+  };
+  const sc = statusConfig[healthStatus];
 
   if (activeTattoos.length === 0) {
     return (
-      <View style={[commonStyles.container, commonStyles.emptyState]}>
-        <Feather name="clipboard" size={48} color={COLORS.textMuted} />
+      <View style={[commonStyles.container, styles.center]}>
+        <Text style={styles.emptyIcon}>📋</Text>
         <Text style={styles.emptyTitle}>No active tattoos</Text>
-        <Text style={commonStyles.emptyStateText}>
-          Add a tattoo to start logging your daily care routine.
-        </Text>
+        <Text style={styles.emptySubtitle}>Add a tattoo to start logging your care.</Text>
+        <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate('Home', { screen: 'AddTattoo' })}>
+          <Text style={styles.emptyButtonText}>Add Tattoo</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={commonStyles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+    <KeyboardAvoidingView style={commonStyles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
         {/* Tattoo selector */}
         {activeTattoos.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectorScroll}>
-            {activeTattoos.map((t, i) => (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectorBar} contentContainerStyle={styles.selectorContent}>
+            {activeTattoos.map((t) => (
               <TouchableOpacity
                 key={t.id}
-                style={[styles.selectorChip, i === selectedTattooIndex && styles.selectorChipActive]}
-                onPress={() => setSelectedTattooIndex(i)}
+                style={[styles.selectorChip, selectedTattoo?.id === t.id && styles.selectorChipActive]}
+                onPress={() => setSelectedId(t.id)} activeOpacity={0.7}
               >
-                <Text style={[styles.selectorText, i === selectedTattooIndex && styles.selectorTextActive]}>
-                  {t.name}
-                </Text>
+                <Text style={[styles.selectorChipText, selectedTattoo?.id === t.id && styles.selectorChipTextActive]}>{t.name}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         )}
 
-        {/* Date header */}
+        {/* Date + header */}
         <View style={styles.dateHeader}>
-          <Text style={styles.dateText}>{format(new Date(), 'EEEE, MMMM d')}</Text>
-          {selectedTattoo && (
-            <Text style={styles.dayText}>Day {getDayNumber(selectedTattoo.date_tattooed)}</Text>
+          <Text style={styles.dateLabel}>{format(new Date(), 'EEEE, MMMM d').toUpperCase()}</Text>
+          {existingLogId && (
+            <View style={styles.updatingBadge}>
+              <Text style={styles.updatingBadgeText}>UPDATE</Text>
+            </View>
           )}
         </View>
 
-        {loading ? (
-          <ActivityIndicator color={COLORS.accent} style={{ marginTop: SPACING.xxl }} />
-        ) : (
-          <>
-            {/* Mini calendar */}
-            <MiniCalendar logs={recentLogs} />
-
-            {/* Health status */}
-            <View style={[styles.healthCard, { borderColor: hc.color + '55', backgroundColor: hc.color + '12' }]}>
-              <Feather name={hc.icon} size={20} color={hc.color} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.healthLabel, { color: hc.color }]}>{hc.label}</Text>
-                <Text style={styles.healthSub}>{hc.sub}</Text>
+        {/* 7-day mini calendar */}
+        <View style={styles.weekRow}>
+          {last7.map(({ date, label, isToday: isTd }) => {
+            const logged = weekLogs[date];
+            const hasEntry = !!logged;
+            const isPast = date < today;
+            return (
+              <View key={date} style={styles.weekDay}>
+                <Text style={[styles.weekDayLabel, isTd && { color: COLORS.accent }]}>{label}</Text>
+                <View style={[
+                  styles.weekDot,
+                  isTd && styles.weekDotToday,
+                  hasEntry && { backgroundColor: COLORS.accent },
+                  !hasEntry && isPast && { backgroundColor: COLORS.danger + '44' },
+                ]}>
+                  {hasEntry && <Feather name="check" size={8} color={COLORS.textInverse} />}
+                </View>
               </View>
-            </View>
+            );
+          })}
+        </View>
 
-            {/* Care done */}
-            <Text style={commonStyles.sectionHeader}>CARE DONE TODAY</Text>
-            <View style={styles.checkGroup}>
-              <CheckRow label="Washed with unscented soap" checked={washed} onToggle={() => setWashed(!washed)} />
-              <View style={styles.checkDivider} />
-              <CheckRow label="Applied moisturizer" checked={moisturized} onToggle={() => setMoisturized(!moisturized)} />
-            </View>
+        {/* Health status */}
+        <View style={[styles.statusBanner, { backgroundColor: sc.bg, borderColor: sc.border }]}>
+          <Feather name={sc.icon} size={16} color={sc.color} />
+          <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+        </View>
 
-            {/* Symptoms */}
-            <Text style={[commonStyles.sectionHeader, { marginTop: SPACING.md }]}>HOW'S IT LOOKING?</Text>
-            <View style={styles.checkGroup}>
-              <CheckRow label="Peeling / flaking" checked={peeling} onToggle={() => setPeeling(!peeling)} variant="warning" />
-              <View style={styles.checkDivider} />
-              <CheckRow label="Itching" checked={itching} onToggle={() => setItching(!itching)} variant="warning" />
-              <View style={styles.checkDivider} />
-              <CheckRow label="Redness" checked={redness} onToggle={() => setRedness(!redness)} variant="warning" />
-              <View style={styles.checkDivider} />
-              <CheckRow label="Swelling" checked={swelling} onToggle={() => setSwelling(!swelling)} variant="warning" />
-            </View>
+        {/* Care done */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>CARE DONE TODAY</Text>
+          <View style={styles.toggleRow}>
+            <ToggleButton label="WASHED" icon="droplet" active={log.washed} onPress={() => toggle('washed')} />
+            <ToggleButton label="MOISTURIZED" icon="wind" active={log.moisturized} onPress={() => toggle('moisturized')} />
+          </View>
+        </View>
 
-            {/* Warning signs */}
-            <Text style={[commonStyles.sectionHeader, { marginTop: SPACING.md, color: COLORS.danger + 'AA' }]}>⚠ WARNING SIGNS</Text>
-            <View style={[styles.checkGroup, styles.warningGroup]}>
-              <CheckRow label="Discharge (thick, green, or foul-smelling)" checked={discharge} onToggle={() => setDischarge(!discharge)} variant="danger" />
-              <View style={styles.checkDivider} />
-              <CheckRow label="Fever or feeling generally unwell" checked={fever} onToggle={() => setFever(!fever)} variant="danger" />
-            </View>
+        {/* Symptoms */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>HOW'S IT LOOKING?</Text>
+          <View style={styles.checkGrid}>
+            {[
+              { key: 'peeling', label: 'Peeling' },
+              { key: 'itching', label: 'Itching' },
+              { key: 'redness', label: 'Redness' },
+              { key: 'swelling', label: 'Swelling' },
+            ].map(({ key, label }) => (
+              <CheckboxItem key={key} label={label} checked={log[key]} onPress={() => toggle(key)} />
+            ))}
+          </View>
+        </View>
 
-            {/* Notes */}
-            <Text style={[commonStyles.sectionHeader, { marginTop: SPACING.md }]}>NOTES</Text>
-            <TextInput
-              style={[commonStyles.input, styles.notesInput]}
-              placeholder="Observations, questions for your artist, etc."
-              placeholderTextColor={COLORS.textMuted}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
+        {/* Warning signs */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: COLORS.danger + 'BB' }]}>⚠ WARNING SIGNS</Text>
+          <View style={[styles.warningCard]}>
+            <CheckboxItem label="Discharge / Oozing" checked={log.discharge} onPress={() => toggle('discharge')} danger />
+            <View style={styles.checkDivider} />
+            <CheckboxItem label="Fever" checked={log.fever} onPress={() => toggle('fever')} danger />
+          </View>
+        </View>
 
-            {/* Photo */}
-            <TouchableOpacity style={styles.photoBtn} onPress={handleAddPhoto}>
-              <Feather name="camera" size={18} color={COLORS.accent} />
-              <Text style={styles.photoBtnText}>Add Today's Photo</Text>
-            </TouchableOpacity>
+        {/* Photo */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>TODAY'S PHOTO</Text>
+          <TouchableOpacity style={styles.photoRow} onPress={handlePickPhoto} activeOpacity={0.75}>
+            {photo ? (
+              <Image source={{ uri: photo }} style={styles.photoThumb} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Feather name="camera" size={20} color={COLORS.textMuted} />
+                <Text style={styles.photoPlaceholderText}>Add Photo</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
-            {/* Save */}
-            <TouchableOpacity
-              style={[commonStyles.button, { marginTop: SPACING.md }]}
-              onPress={handleSave}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color="#000" />
-              ) : (
-                <Text style={commonStyles.buttonText}>
-                  {existingLogId ? 'Update Log' : 'Save Log'}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </>
-        )}
+        {/* Notes */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>NOTES</Text>
+          <TextInput
+            style={styles.notesInput} value={notes} onChangeText={setNotes}
+            placeholder="How's it feeling? Any observations..." placeholderTextColor={COLORS.textMuted}
+            multiline numberOfLines={4} textAlignVertical="top"
+          />
+        </View>
 
-        <View style={{ height: SPACING.xxl }} />
+        {/* Save */}
+        <TouchableOpacity style={[styles.saveButton, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
+          <Text style={styles.saveButtonText}>{saving ? 'Saving...' : existingLogId ? 'Update Log' : 'Save Log'}</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
+function ToggleButton({ label, icon, active, onPress }) {
+  return (
+    <TouchableOpacity
+      style={[styles.toggleBtn, active && styles.toggleBtnActive]}
+      onPress={onPress} activeOpacity={0.75}
+    >
+      <Feather name={icon} size={18} color={active ? COLORS.textInverse : COLORS.textMuted} />
+      <Text style={[styles.toggleBtnText, active && styles.toggleBtnTextActive]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function CheckboxItem({ label, checked, onPress, danger }) {
+  return (
+    <TouchableOpacity style={styles.checkRow} onPress={onPress} activeOpacity={0.7}>
+      <View style={[
+        styles.checkbox,
+        checked && { backgroundColor: danger ? COLORS.danger : COLORS.accent, borderColor: danger ? COLORS.danger : COLORS.accent },
+        !checked && danger && { borderColor: COLORS.danger + '66' },
+      ]}>
+        {checked && <Feather name="check" size={11} color={COLORS.textInverse} />}
+      </View>
+      <Text style={[styles.checkLabel, checked && { color: COLORS.textPrimary }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  content: {
-    padding: SPACING.lg,
-  },
-  selectorScroll: {
-    marginBottom: SPACING.md,
-    marginHorizontal: -SPACING.lg,
-    paddingHorizontal: SPACING.lg,
-  },
-  selectorChip: {
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginRight: SPACING.xs,
-    backgroundColor: COLORS.card,
-  },
-  selectorChipActive: {
-    backgroundColor: COLORS.accent + '22',
-    borderColor: COLORS.accent,
-  },
-  selectorText: {
-    color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.sm,
-  },
-  selectorTextActive: {
-    color: COLORS.accent,
-    fontWeight: FONTS.weights.semibold,
-  },
-  dateHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  dateText: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: FONTS.weights.bold,
-  },
-  dayText: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.sm,
-  },
-  calendar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    marginBottom: SPACING.lg,
-  },
-  calDay: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  calDayLabel: {
-    color: COLORS.textMuted,
-    fontSize: FONTS.sizes.xs,
-  },
-  calDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.surface,
-  },
-  calDotToday: {
-    borderWidth: 1,
-    borderColor: COLORS.accent,
-  },
-  calDotLogged: {
-    backgroundColor: COLORS.success + '33',
-  },
-  calDotMissed: {
-    backgroundColor: COLORS.danger + '22',
-  },
-  calDayNum: {
-    color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.xs,
-    fontWeight: FONTS.weights.medium,
-  },
-  calDayNumToday: {
-    color: COLORS.accent,
-    fontWeight: FONTS.weights.bold,
-  },
-  healthCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    padding: SPACING.md,
-    marginBottom: SPACING.lg,
-  },
-  healthLabel: {
-    fontSize: FONTS.sizes.md,
-    fontWeight: FONTS.weights.semibold,
-  },
-  healthSub: {
-    color: COLORS.textSecondary,
-    fontSize: FONTS.sizes.xs,
-    marginTop: 2,
-  },
-  checkGroup: {
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
-  },
-  warningGroup: {
-    borderWidth: 1,
-    borderColor: COLORS.danger + '33',
-  },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-    padding: SPACING.md,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  checkLabel: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.sm,
-    flex: 1,
-  },
-  checkLabelDanger: {
-    color: COLORS.danger,
-  },
-  checkLabelWarning: {
-    color: COLORS.warning,
-  },
-  checkDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginHorizontal: SPACING.md,
-  },
-  notesInput: {
-    height: 90,
-    paddingTop: SPACING.md,
-  },
-  photoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.accent + '60',
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    marginTop: SPACING.md,
-    backgroundColor: COLORS.accent + '12',
-  },
-  photoBtnText: {
-    color: COLORS.accent,
-    fontSize: FONTS.sizes.sm,
-    fontWeight: FONTS.weights.semibold,
-  },
-  emptyTitle: {
-    color: COLORS.textPrimary,
-    fontSize: FONTS.sizes.lg,
-    fontWeight: FONTS.weights.semibold,
-    marginTop: SPACING.md,
-  },
+  scrollContent: { paddingBottom: 120 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xxl },
+  selectorBar: { marginBottom: SPACING.md },
+  selectorContent: { paddingHorizontal: SPACING.lg, gap: SPACING.sm },
+  selectorChip: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: RADIUS.full, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border },
+  selectorChipActive: { backgroundColor: COLORS.accentMuted, borderColor: COLORS.accentBorder },
+  selectorChipText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
+  selectorChipTextActive: { color: COLORS.accent },
+  dateHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.lg, marginBottom: SPACING.md },
+  dateLabel: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
+  updatingBadge: { backgroundColor: COLORS.accentMuted, borderRadius: RADIUS.full, paddingHorizontal: 7, paddingVertical: 2, borderWidth: 1, borderColor: COLORS.accentBorder },
+  updatingBadgeText: { color: COLORS.accent, fontSize: 9, fontWeight: '700', letterSpacing: 0.6 },
+  weekRow: { flexDirection: 'row', paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg, justifyContent: 'space-between' },
+  weekDay: { alignItems: 'center', gap: 4 },
+  weekDayLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '600' },
+  weekDot: { width: 24, height: 24, borderRadius: RADIUS.full, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  weekDotToday: { borderColor: COLORS.accentBorder },
+  statusBanner: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginHorizontal: SPACING.lg, marginBottom: SPACING.lg, borderRadius: RADIUS.md, padding: SPACING.md, borderWidth: 1 },
+  statusText: { fontSize: 13, fontWeight: '600', flex: 1 },
+  section: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.xl },
+  sectionLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: SPACING.sm },
+  toggleRow: { flexDirection: 'row', gap: SPACING.sm },
+  toggleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, backgroundColor: COLORS.card, borderRadius: RADIUS.lg, paddingVertical: SPACING.lg, borderWidth: 1, borderColor: COLORS.border },
+  toggleBtnActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent, ...SHADOWS.gold },
+  toggleBtnText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
+  toggleBtnTextActive: { color: COLORS.textInverse },
+  checkGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, width: '48%' },
+  checkbox: { width: 20, height: 20, borderRadius: RADIUS.sm, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  checkLabel: { color: COLORS.textMuted, fontSize: 13, fontWeight: '500', flex: 1 },
+  warningCard: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.danger + '33', overflow: 'hidden', paddingHorizontal: SPACING.md },
+  checkDivider: { height: 1, backgroundColor: COLORS.border },
+  photoRow: { borderRadius: RADIUS.lg, overflow: 'hidden' },
+  photoThumb: { width: '100%', height: 140, borderRadius: RADIUS.lg },
+  photoPlaceholder: { height: 80, backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: SPACING.sm },
+  photoPlaceholderText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '500' },
+  notesInput: { backgroundColor: COLORS.surface, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, color: COLORS.textPrimary, fontSize: 15, padding: SPACING.md, minHeight: 80 },
+  saveButton: { marginHorizontal: SPACING.lg, backgroundColor: COLORS.accent, borderRadius: RADIUS.md, paddingVertical: SPACING.lg, alignItems: 'center', ...SHADOWS.gold },
+  saveButtonText: { color: COLORS.textInverse, fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
+  emptyIcon: { fontSize: 48, marginBottom: SPACING.md },
+  emptyTitle: { ...FONTS.headingLarge, textAlign: 'center', marginBottom: SPACING.sm },
+  emptySubtitle: { ...FONTS.body, textAlign: 'center', marginBottom: SPACING.xl },
+  emptyButton: { backgroundColor: COLORS.accent, borderRadius: RADIUS.md, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl, ...SHADOWS.gold },
+  emptyButtonText: { color: COLORS.textInverse, fontSize: 14, fontWeight: '700' },
 });
