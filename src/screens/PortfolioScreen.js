@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import ViewShot from 'react-native-view-shot';
+import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { format, parseISO } from 'date-fns';
 import { COLORS, FONTS, SPACING, RADIUS, commonStyles } from '../constants/theme';
