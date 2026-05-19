@@ -10,31 +10,31 @@
     "icon": "node generate-icon.js"
   },
   "dependencies": {
+    "@expo/vector-icons": "^14.0.4",
+    "@react-navigation/bottom-tabs": "^6.6.1",
+    "@react-navigation/native": "^6.1.18",
+    "@react-navigation/stack": "^6.4.1",
+    "date-fns": "^3.6.0",
     "expo": "~54.0.0",
     "expo-asset": "*",
-    "expo-status-bar": "*",
-    "expo-sqlite": "*",
-    "expo-notifications": "*",
+    "expo-file-system": "*",
     "expo-image-picker": "*",
     "expo-media-library": "*",
+    "expo-notifications": "*",
     "expo-sharing": "*",
-    "expo-file-system": "*",
+    "expo-sqlite": "*",
+    "expo-status-bar": "*",
     "react": "*",
     "react-native": "*",
-    "react-native-view-shot": "^3.8.0",
+    "react-native-gesture-handler": "*",
     "react-native-purchases": "^8.2.3",
     "react-native-safe-area-context": "*",
     "react-native-screens": "*",
-    "react-native-gesture-handler": "*",
-    "@react-navigation/native": "^6.1.18",
-    "@react-navigation/bottom-tabs": "^6.6.1",
-    "@react-navigation/stack": "^6.4.1",
-    "@expo/vector-icons": "^14.0.4",
-    "date-fns": "^3.6.0"
+    "react-native-view-shot": "^3.8.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "sharp": "^0.33.4"
+    "sharp": "^0.33.5"
   },
   "private": true
 }
