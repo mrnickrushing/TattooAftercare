@@ -1,0 +1,75 @@
+{
+  "expo": {
+    "name": "Tattoo Aftercare",
+    "slug": "tattoo-aftercare",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0D0D"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.tattooaftercare.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to take photos of your tattoo healing progress.",
+        "NSPhotoLibraryUsageDescription": "Used to save and access tattoo progress photos.",
+        "NSPhotoLibraryAddUsageDescription": "Used to save your tattoo progress photos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0D0D0D"
+      },
+      "package": "com.tattooaftercare.app",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#C8A951",
+          "sounds": [],
+          "mode": "production"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Used to select tattoo progress photos.",
+          "cameraPermission": "Used to take tattoo progress photos."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Used to access your photo library for tattoo progress photos.",
+          "savePhotosPermission": "Used to save your tattoo progress photos.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      "expo-sqlite"
+    ]
+  }
+}
