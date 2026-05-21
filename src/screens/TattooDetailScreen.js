@@ -40,7 +40,7 @@ export default function TattooDetailScreen({ route, navigation }) {
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
   const handleAddPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
     if (!result.canceled && result.assets[0]) {
       const uri = result.assets[0].uri;
       const day = getDayNumber(tattoo.date_tattooed);
@@ -93,7 +93,7 @@ export default function TattooDetailScreen({ route, navigation }) {
   const day = getDayNumber(tattoo.date_tattooed);
   let dateStr = '';
   try { dateStr = format(parseISO(tattoo.date_tattooed), 'MMMM d, yyyy'); } catch { dateStr = tattoo.date_tattooed; }
-  const finalPhoto = photos.length > 0 ? photos[photos.length - 1].uri : null;
+  const finalPhotoUri = photos.length > 0 ? photos[photos.length - 1].uri : null;
 
   return (
     <View style={commonStyles.container}>
@@ -245,7 +245,7 @@ export default function TattooDetailScreen({ route, navigation }) {
       {/* Off-screen share card */}
       {sharing && (
         <View style={styles.offScreen}>
-          <ShareableCard ref={shareCardRef} tattoo={tattoo} finalPhoto={finalPhoto} />
+          <ShareableCard ref={shareCardRef} tattoo={tattoo} finalPhotoUri={finalPhotoUri} />
         </View>
       )}
     </View>
