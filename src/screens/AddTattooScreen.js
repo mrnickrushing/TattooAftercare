@@ -14,7 +14,7 @@ const STYLES = ['Traditional', 'Neo-Traditional', 'Realism', 'Watercolor', 'Blac
 const PLACEMENTS = ['Forearm', 'Upper Arm', 'Bicep', 'Wrist', 'Hand', 'Chest', 'Ribs', 'Back', 'Shoulder', 'Neck', 'Leg', 'Thigh', 'Calf', 'Ankle', 'Foot', 'Hip', 'Other'];
 
 export default function AddTattooScreen({ navigation }) {
-  const { proStatus, activeCount, refreshTattoos } = useApp();
+  const { proStatus, activeCount, refreshTattoos, purchasePro, restorePurchases } = useApp();
   const [name, setName] = useState('');
   const [date, setDate] = useState('');
   const [placement, setPlacement] = useState('');
@@ -79,11 +79,11 @@ export default function AddTattooScreen({ navigation }) {
               </View>
             ))}
           </View>
-          <TouchableOpacity style={styles.gateButtonPrimary} activeOpacity={0.85}>
-            <Text style={styles.gateButtonPrimaryText}>Get Pro — $3.99 one-time</Text>
+          <TouchableOpacity style={styles.gateButtonPrimary} onPress={purchasePro} activeOpacity={0.85}>
+            <Text style={styles.gateButtonPrimaryText}>Unlock Pro — $4.99</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.gateButtonSecondary} activeOpacity={0.75}>
-            <Text style={styles.gateButtonSecondaryText}>$1.99 / month</Text>
+          <TouchableOpacity style={styles.gateButtonSecondary} onPress={restorePurchases} activeOpacity={0.75}>
+            <Text style={styles.gateButtonSecondaryText}>Restore Purchase</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.gateBack}>Not now</Text>

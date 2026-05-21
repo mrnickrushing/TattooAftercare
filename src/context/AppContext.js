@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Platform } from 'react-native';
 import { getTattoos, getStreak } from '../database/db';
 import { isHealed } from '../utils/healingStages';
-import { REVENUECAT_API_KEY_IOS, REVENUECAT_API_KEY_ANDROID } from '../config';
 
 const AppContext = createContext(null);
 
@@ -20,8 +18,8 @@ export function AppProvider({ children }) {
     try {
       const data = await getTattoos();
       setTattoos(data);
-    } catch (error) {
-      console.error('Error refreshing tattoos:', error);
+    } catch (e) {
+      console.error('Error refreshing tattoos:', e);
     }
   }, []);
 
@@ -29,34 +27,30 @@ export function AppProvider({ children }) {
     try {
       const s = await getStreak();
       setStreak(s);
-    } catch (error) {
-      console.error('Error refreshing streak:', error);
+    } catch (e) {
+      console.error('Error refreshing streak:', e);
     }
   }, []);
 
   const checkProStatus = useCallback(async () => {
     try {
-      // Try to use RevenueCat if available
       const Purchases = require('react-native-purchases').default;
       const customerInfo = await Purchases.getCustomerInfo();
-      const isPro =
-        customerInfo.entitlements.active['pro'] !== undefined ||
-        customerInfo.entitlements.active['premium'] !== undefined;
+      const isPro = customerInfo.entitlements.active['pro'] !== undefined;
       setProStatus(isPro);
     } catch {
-      // RevenueCat not configured or errored — default to free
       setProStatus(false);
     }
   }, []);
 
-  const purchaseMonthly = useCallback(async () => {
+  const purchasePro = useCallback(async () => {
     try {
       const Purchases = require('react-native-purchases').default;
-      const { PRO_MONTHLY_ID } = require('../config');
+      const { PRO_PRODUCT_ID } = require('../config');
       const offerings = await Purchases.getOfferings();
       if (offerings.current) {
         const pkg = offerings.current.availablePackages.find(
-          (p) => p.product.productIdentifier === PRO_MONTHLY_ID
+          (p) => p.product.productIdentifier === PRO_PRODUCT_ID
         );
         if (pkg) {
           const { customerInfo } = await Purchases.purchasePackage(pkg);
@@ -66,31 +60,8 @@ export function AppProvider({ children }) {
         }
       }
       return false;
-    } catch (error) {
-      console.error('Purchase error:', error);
-      return false;
-    }
-  }, []);
-
-  const purchaseLifetime = useCallback(async () => {
-    try {
-      const Purchases = require('react-native-purchases').default;
-      const { PRO_LIFETIME_ID } = require('../config');
-      const offerings = await Purchases.getOfferings();
-      if (offerings.current) {
-        const pkg = offerings.current.availablePackages.find(
-          (p) => p.product.productIdentifier === PRO_LIFETIME_ID
-        );
-        if (pkg) {
-          const { customerInfo } = await Purchases.purchasePackage(pkg);
-          const isPro = customerInfo.entitlements.active['pro'] !== undefined;
-          setProStatus(isPro);
-          return isPro;
-        }
-      }
-      return false;
-    } catch (error) {
-      console.error('Purchase error:', error);
+    } catch (e) {
+      console.error('Purchase error:', e);
       return false;
     }
   }, []);
@@ -102,8 +73,8 @@ export function AppProvider({ children }) {
       const isPro = customerInfo.entitlements.active['pro'] !== undefined;
       setProStatus(isPro);
       return isPro;
-    } catch (error) {
-      console.error('Restore error:', error);
+    } catch (e) {
+      console.error('Restore error:', e);
       return false;
     }
   }, []);
@@ -121,19 +92,10 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider
       value={{
-        tattoos,
-        activeTattoos,
-        healedTattoos,
-        proStatus,
-        streak,
-        activeCount,
-        loading,
-        refreshTattoos,
-        refreshStreak,
-        checkProStatus,
-        purchaseMonthly,
-        purchaseLifetime,
-        restorePurchases,
+        tattoos, activeTattoos, healedTattoos,
+        proStatus, streak, activeCount, loading,
+        refreshTattoos, refreshStreak, checkProStatus,
+        purchasePro, restorePurchases,
       }}
     >
       {children}
@@ -143,8 +105,6 @@ export function AppProvider({ children }) {
 
 export function useApp() {
   const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
+  if (!context) throw new Error('useApp must be used within an AppProvider');
   return context;
 }

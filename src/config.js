@@ -1,7 +1,7 @@
 export const REVENUECAT_API_KEY_IOS = 'YOUR_REVENUECAT_IOS_KEY';
 export const REVENUECAT_API_KEY_ANDROID = 'YOUR_REVENUECAT_ANDROID_KEY';
-export const PRO_MONTHLY_ID = 'TattooAftercare.Monthly';
-export const PRO_LIFETIME_ID = 'TattooAftercare.Pro';
+export const PRO_PRODUCT_ID = 'TattooAftercare.Pro';
+export const PRO_PRICE_DISPLAY = '$4.99';
 export const FREE_TATTOO_LIMIT = 1;
 
 export const HEALING_DAYS_TOTAL = 28;
