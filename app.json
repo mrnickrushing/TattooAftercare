@@ -21,7 +21,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Used to take photos of your tattoo healing progress.",
         "NSPhotoLibraryUsageDescription": "Used to save and access tattoo progress photos.",
-        "NSPhotoLibraryAddUsageDescription": "Used to save your tattoo progress photos."
+        "NSPhotoLibraryAddUsageDescription": "Used to save your tattoo progress photos.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
