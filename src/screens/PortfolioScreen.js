@@ -125,7 +125,7 @@ export default function PortfolioScreen({ navigation }) {
 
       {sharingTattoo && (
         <View style={styles.offScreen}>
-          <ShareableCard ref={shareCardRef} tattoo={sharingTattoo} finalPhoto={sharePhoto} />
+          <ShareableCard ref={shareCardRef} tattoo={sharingTattoo} finalPhotoUri={sharePhoto} />
         </View>
       )}
     </View>
