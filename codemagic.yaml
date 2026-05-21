@@ -1,0 +1,126 @@
+workflows:
+
+  ios-release:
+    name: iOS Release
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    environment:
+      node: 20.9.0
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: com.tattooaftercare.app
+        XCODE_SCHEME: TattooAftercare
+      # Add these in Codemagic UI → Environment variables (mark as secure):
+      #   APP_STORE_CONNECT_ISSUER_ID
+      #   APP_STORE_CONNECT_KEY_IDENTIFIER
+      #   APP_STORE_CONNECT_PRIVATE_KEY   (the .p8 file contents)
+      #   CERTIFICATE_PRIVATE_KEY         (your distribution certificate key)
+      app_store_connect:
+        auth: environment_variables
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.tattooaftercare.app
+
+    scripts:
+      - name: Install dependencies
+        script: npm install --legacy-peer-deps
+
+      - name: Set correct SDK versions
+        script: npx expo install --fix
+
+      - name: Expo prebuild (generates native iOS project)
+        script: npx expo prebuild --platform ios --clean
+
+      - name: Install CocoaPods
+        script: cd ios && pod install
+
+      - name: Set build number from Codemagic
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || echo "0")
+          agvtool new-version -all $((LATEST + 1))
+        working_directory: ios
+
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace ios/TattooAftercare.xcworkspace \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: environment_variables
+        submit_to_testflight: true
+
+
+  android-release:
+    name: Android Release
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      node: 20.9.0
+      vars:
+        PACKAGE_NAME: com.tattooaftercare.app
+      # Add these in Codemagic UI → Environment variables (mark as secure):
+      #   CM_KEYSTORE            (base64-encoded .keystore file)
+      #   CM_KEYSTORE_PASSWORD
+      #   CM_KEY_ALIAS
+      #   CM_KEY_PASSWORD
+      android_signing:
+        - tattoo_aftercare_keystore
+
+    scripts:
+      - name: Install dependencies
+        script: npm install --legacy-peer-deps
+
+      - name: Set correct SDK versions
+        script: npx expo install --fix
+
+      - name: Expo prebuild (generates native Android project)
+        script: npx expo prebuild --platform android --clean
+
+      - name: Set build number
+        script: |
+          BUILD_NUMBER=$(($BUILD_NUMBER + 1))
+          sed -i "s/versionCode [0-9]*/versionCode $BUILD_NUMBER/" android/app/build.gradle
+
+      - name: Build AAB (Google Play)
+        script: |
+          cd android && ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=$CM_KEYSTORE_PATH \
+            -Pandroid.injected.signing.store.password=$CM_KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$CM_KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$CM_KEY_PASSWORD
+
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+      - android/app/build/outputs/**/*.apk
+
+    publishing:
+      google_play:
+        # Add in Codemagic UI → Environment variables:
+        #   GCLOUD_SERVICE_ACCOUNT_CREDENTIALS (your Google Play service account JSON)
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+
+
+  # Quick dev build — no signing needed, just verify it compiles
+  dev-check:
+    name: Dev Check (no signing)
+    instance_type: linux_x2
+    max_build_duration: 30
+    environment:
+      node: 20.9.0
+    scripts:
+      - name: Install dependencies
+        script: npm install --legacy-peer-deps
+      - name: Check dependencies
+        script: npx expo install --check
+      - name: Expo export (JS bundle only)
+        script: npx expo export --platform android
+    artifacts:
+      - dist/**
