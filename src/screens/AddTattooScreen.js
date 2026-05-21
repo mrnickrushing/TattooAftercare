@@ -32,7 +32,7 @@ export default function AddTattooScreen({ navigation }) {
   const isProGated = !proStatus && activeCount >= 1;
 
   const handlePickPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8, allowsEditing: true, aspect: [1, 1] });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, allowsEditing: true, aspect: [1, 1] });
     if (!result.canceled && result.assets[0]) setThumbnail(result.assets[0].uri);
   };
 

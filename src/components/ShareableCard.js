@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image } from 'react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import { format, parseISO } from 'date-fns';
 
-const ShareableCard = React.forwardRef(function ShareableCard({ tattoo, finalPhoto }, ref) {
+const ShareableCard = React.forwardRef(function ShareableCard({ tattoo, finalPhotoUri }, ref) {
   let formattedDate = '';
   try {
     formattedDate = format(parseISO(tattoo.date_tattooed), 'MMMM d, yyyy');
@@ -11,7 +11,7 @@ const ShareableCard = React.forwardRef(function ShareableCard({ tattoo, finalPho
     formattedDate = tattoo.date_tattooed;
   }
 
-  const photoUri = finalPhoto?.uri || tattoo.thumbnail_uri;
+  const photoUri = finalPhotoUri || tattoo.thumbnail_uri;
   const instagram = tattoo.artist_instagram
     ? (tattoo.artist_instagram.startsWith('@') ? tattoo.artist_instagram : '@' + tattoo.artist_instagram)
     : null;
