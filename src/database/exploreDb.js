@@ -1,32 +1,34 @@
 /**
  * exploreDb.js
  * SQLite helpers for Explore feed, artist profiles, and leaderboard queries.
- * All writes go through socialDb for posts/follows — this file is read-focused.
+ * Read-focused — all writes go through socialDb.
+ *
+ * Uses main-canonical table names:
+ *   posts, follows, users_cache, tattoos
  */
-import { getDB as getDatabase } from './db';
+import { getDatabase } from './database';
 
 /**
  * Get public posts filtered by optional style and/or body_part tag.
- * Paginates with limit/offset.
  */
 export async function getExplorePosts({ style, bodyPart, limit = 30, offset = 0 } = {}) {
   try {
     const db = await getDatabase();
     let query = `
-      SELECT p.*, u.username, u.avatar_uri, u.display_name,
+      SELECT p.*,
+             u.username, u.avatar_uri, u.display_name,
              t.name AS tattoo_name, t.style, t.body_part, t.artist_name
-      FROM tattoo_posts p
-      LEFT JOIN users u ON p.user_id = u.id
+      FROM posts p
+      LEFT JOIN users_cache u ON p.user_id = u.id
       LEFT JOIN tattoos t ON p.tattoo_id = t.id
       WHERE p.visibility = 'public'
     `;
     const args = [];
-    if (style) { query += ' AND t.style = ?'; args.push(style); }
-    if (bodyPart) { query += ' AND t.body_part = ?'; args.push(bodyPart); }
+    if (style)    { query += ' AND t.style = ?';      args.push(style); }
+    if (bodyPart) { query += ' AND t.body_part = ?';  args.push(bodyPart); }
     query += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     args.push(limit, offset);
-    const result = await db.getAllAsync(query, args);
-    return result || [];
+    return await db.getAllAsync(query, args) || [];
   } catch (e) {
     console.error('getExplorePosts:', e);
     return [];
@@ -34,8 +36,7 @@ export async function getExplorePosts({ style, bodyPart, limit = 30, offset = 0 
 }
 
 /**
- * Get a deduplicated list of all artist names that users have tagged,
- * sorted alphabetically. Used for the artist search/autocomplete.
+ * Deduplicated list of all artist names tagged by users.
  */
 export async function getAllArtistNames() {
   try {
@@ -53,8 +54,7 @@ export async function getAllArtistNames() {
 }
 
 /**
- * Get all tattoos and public posts tagged with a given artist name.
- * Used to populate the ArtistProfileScreen.
+ * All tattoos and public posts tagged with a given artist name.
  */
 export async function getArtistData(artistName) {
   try {
@@ -62,15 +62,16 @@ export async function getArtistData(artistName) {
     const tattoos = await db.getAllAsync(
       `SELECT t.*, u.username, u.display_name
        FROM tattoos t
-       LEFT JOIN users u ON t.user_id = u.id
+       LEFT JOIN users_cache u ON t.user_id = u.id
        WHERE t.artist_name = ?
        ORDER BY t.date_tattooed DESC`,
       [artistName]
     );
     const posts = await db.getAllAsync(
-      `SELECT p.*, u.username, u.avatar_uri, t.name AS tattoo_name, t.style, t.body_part
-       FROM tattoo_posts p
-       LEFT JOIN users u ON p.user_id = u.id
+      `SELECT p.*, u.username, u.avatar_uri,
+              t.name AS tattoo_name, t.style, t.body_part
+       FROM posts p
+       LEFT JOIN users_cache u ON p.user_id = u.id
        LEFT JOIN tattoos t ON p.tattoo_id = t.id
        WHERE t.artist_name = ? AND p.visibility = 'public'
        ORDER BY p.created_at DESC`,
@@ -94,32 +95,34 @@ export async function getArtistData(artistName) {
 }
 
 /**
- * Get leaderboard data for all users the current user follows.
- * Ranks by care streak (descending).
+ * Friends leaderboard ranked by care_streak.
+ * Reads from users_cache (cached friend profiles) + local_user for self.
  */
 export async function getFriendsLeaderboard(currentUserId) {
   try {
     const db = await getDatabase();
-    // Get all followed user IDs
-    const follows = await db.getAllAsync(
-      'SELECT following_id FROM follow_relationships WHERE follower_id = ?',
+    // Get followed user IDs
+    const followRows = await db.getAllAsync(
+      'SELECT following_id FROM follows WHERE follower_id = ? AND status = "accepted"',
       [currentUserId]
     );
-    const followedIds = (follows || []).map((f) => f.following_id);
-    // Include self
-    const ids = [currentUserId, ...followedIds];
-    if (ids.length === 0) return [];
-    const placeholders = ids.map(() => '?').join(',');
-    const users = await db.getAllAsync(
-      `SELECT u.id, u.username, u.display_name, u.avatar_uri,
-              u.care_streak, u.total_care_logs, u.badges_earned,
-              (SELECT COUNT(*) FROM tattoos WHERE user_id = u.id) AS tattoo_count
-       FROM users u
-       WHERE u.id IN (${placeholders})
-       ORDER BY u.care_streak DESC`,
-      ids
-    );
-    return (users || []).map((u, i) => ({ ...u, rank: i + 1, isCurrentUser: u.id === currentUserId }));
+    const followedIds = (followRows || []).map((f) => f.following_id);
+
+    // Build combined list: self (from local_user) + followed (from users_cache)
+    const self = await db.getFirstAsync('SELECT * FROM local_user LIMIT 1');
+    const friends = followedIds.length > 0
+      ? await db.getAllAsync(
+          `SELECT * FROM users_cache WHERE id IN (${followedIds.map(() => '?').join(',')})`,
+          followedIds
+        )
+      : [];
+
+    const all = [
+      ...(self ? [{ ...self, isCurrentUser: true }] : []),
+      ...(friends || []).map((u) => ({ ...u, isCurrentUser: false })),
+    ].sort((a, b) => (b.care_streak || 0) - (a.care_streak || 0));
+
+    return all.map((u, i) => ({ ...u, rank: i + 1 }));
   } catch (e) {
     console.error('getFriendsLeaderboard:', e);
     return [];
@@ -127,7 +130,7 @@ export async function getFriendsLeaderboard(currentUserId) {
 }
 
 /**
- * Get style distribution for the current user (for Style Passport).
+ * Style distribution for the current user (Style Passport).
  */
 export async function getUserStylePassport(userId) {
   try {
