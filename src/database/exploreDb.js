@@ -3,7 +3,7 @@
  * SQLite helpers for Explore feed, artist profiles, and leaderboard queries.
  * All writes go through socialDb for posts/follows — this file is read-focused.
  */
-import { getDatabase } from './database';
+import { getDB as getDatabase } from './db';
 
 /**
  * Get public posts filtered by optional style and/or body_part tag.
