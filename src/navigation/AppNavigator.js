@@ -26,6 +26,7 @@ import ExploreScreen from '../screens/ExploreScreen';
 import ArtistProfileScreen from '../screens/ArtistProfileScreen';
 import BadgeCabinetScreen from '../screens/BadgeCabinetScreen';
 import FriendsLeaderboardScreen from '../screens/FriendsLeaderboardScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -115,6 +116,7 @@ function ProfileStack() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
       <Stack.Screen name="BadgeCabinet" component={BadgeCabinetScreen} options={{ title: 'Badges & Achievements' }} />
       <Stack.Screen name="FriendsLeaderboard" component={FriendsLeaderboardScreen} options={{ title: 'Leaderboard' }} />
+      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notification Settings' }} />
     </Stack.Navigator>
   );
 }

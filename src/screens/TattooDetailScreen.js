@@ -18,6 +18,9 @@ import HealingProgressBar from '../components/HealingProgressBar';
 import PhotoComparisonSlider from '../components/PhotoComparisonSlider';
 import ShareableCard from '../components/ShareableCard';
 import JournalPostCard from '../components/JournalPostCard';
+import MilestoneCelebrationModal from '../components/MilestoneCelebrationModal';
+import { checkAndSaveMilestone, getUncelebratedMilestones, getAllMilestonesForTattoo } from '../database/socialDb';
+import { getMilestoneMeta } from '../utils/milestones';
 
 const { width } = Dimensions.get('window');
 const HERO_HEIGHT = 240;
@@ -30,6 +33,9 @@ export default function TattooDetailScreen({ route, navigation }) {
   const [journalPosts, setJournalPosts] = useState([]);
   const [sharing, setSharing] = useState(false);
   const shareCardRef = useRef(null);
+  const [milestoneQueue, setMilestoneQueue] = useState([]);
+  const [activeMilestone, setActiveMilestone] = useState(null);
+  const [allMilestones, setAllMilestones] = useState([]);
 
   const loadData = useCallback(async () => {
     const t = await getTattooById(tattooId);
@@ -41,6 +47,19 @@ export default function TattooDetailScreen({ route, navigation }) {
     setPhotos(p);
     const jp = await getJournalPostsForTattoo(tattooId);
     setJournalPosts(jp);
+
+    // Milestone check: save any newly reached milestones, then queue uncelebrated ones
+    const dayNum = getDayNumber(t.date_tattooed);
+    try {
+      await checkAndSaveMilestone(tattooId, dayNum);
+      const uncelebrated = await getUncelebratedMilestones(tattooId);
+      if (uncelebrated.length > 0) {
+        setMilestoneQueue(uncelebrated);
+        setActiveMilestone(uncelebrated[0]);
+      }
+      const all = await getAllMilestonesForTattoo(tattooId);
+      setAllMilestones(all || []);
+    } catch {}
   }, [tattooId]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
@@ -93,6 +112,22 @@ export default function TattooDetailScreen({ route, navigation }) {
 
   const handleCreatePost = () => {
     navigation.navigate('CreateJournalPost', { tattoo });
+  };
+
+  const handleMilestoneDismiss = () => {
+    setActiveMilestone(null);
+    const remaining = milestoneQueue.slice(1);
+    setMilestoneQueue(remaining);
+    if (remaining.length > 0) {
+      // Show next milestone after a brief pause
+      setTimeout(() => setActiveMilestone(remaining[0]), 400);
+    }
+    // Reload milestones to update history section
+    getAllMilestonesForTattoo(tattooId).then((all) => setAllMilestones(all || [])).catch(() => {});
+  };
+
+  const handleReshareMilestone = (milestone) => {
+    setActiveMilestone({ ...milestone, _reshare: true });
   };
 
   if (!tattoo) return <View style={commonStyles.container} />;
@@ -258,6 +293,41 @@ export default function TattooDetailScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* Milestone History */}
+        {allMilestones.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>HEALING MILESTONES</Text>
+            <View style={styles.milestonesCard}>
+              {allMilestones.map((ms, i) => {
+                const meta = getMilestoneMeta(ms.milestone_type);
+                if (!meta) return null;
+                return (
+                  <View key={ms.id}>
+                    {i > 0 && <View style={styles.logDivider} />}
+                    <TouchableOpacity
+                      style={styles.milestoneRow}
+                      onPress={() => handleReshareMilestone(ms)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={[styles.milestoneEmojiBadge, { backgroundColor: meta.color + '22', borderColor: meta.color + '55' }]}>
+                        <Text style={{ fontSize: 18 }}>{meta.emoji}</Text>
+                      </View>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={styles.milestoneTitle}>{meta.title}</Text>
+                        <Text style={styles.milestoneDay}>Day {ms.day_number}</Text>
+                      </View>
+                      <View style={[styles.milestoneShareBtn, { borderColor: meta.color + '55' }]}>
+                        <Feather name="share-2" size={13} color={meta.color} />
+                        <Text style={[styles.milestoneShareText, { color: meta.color }]}>Reshare</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         {/* Journal Posts */}
         {journalPosts.length > 0 && (
           <View style={styles.section}>
@@ -300,6 +370,15 @@ export default function TattooDetailScreen({ route, navigation }) {
         <View style={styles.offScreen}>
           <ShareableCard ref={shareCardRef} tattoo={tattoo} finalPhotoUri={finalPhotoUri} />
         </View>
+      )}
+
+      {/* Milestone celebration modal */}
+      {activeMilestone && (
+        <MilestoneCelebrationModal
+          milestone={activeMilestone}
+          tattoo={tattoo}
+          onDismiss={handleMilestoneDismiss}
+        />
       )}
     </View>
   );
@@ -399,4 +478,18 @@ const styles = StyleSheet.create({
   actionButtonText: { color: COLORS.textInverse, fontSize: 15, fontWeight: '700' },
   actionButtonOutlineText: { color: COLORS.accent, fontSize: 15, fontWeight: '600' },
   offScreen: { position: 'absolute', top: -9999, left: -9999 },
+  milestonesCard: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.borderGold, overflow: 'hidden' },
+  milestoneRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingHorizontal: SPACING.md, paddingVertical: SPACING.md },
+  milestoneEmojiBadge: {
+    width: 42, height: 42, borderRadius: RADIUS.md, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  milestoneTitle: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '700' },
+  milestoneDay: { color: COLORS.textMuted, fontSize: 11, fontWeight: '500' },
+  milestoneShareBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: SPACING.sm, paddingVertical: 5,
+    borderRadius: RADIUS.full, borderWidth: 1,
+  },
+  milestoneShareText: { fontSize: 11, fontWeight: '700' },
 });

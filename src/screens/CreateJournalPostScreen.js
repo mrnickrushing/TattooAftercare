@@ -18,8 +18,9 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, SHADOWS, commonStyles } from '../constants/theme';
 import { getDayNumber } from '../utils/healingStages';
-import { addPost, getLocalUser } from '../database/socialDb';
+import { addPost, getLocalPosts, getLocalUser } from '../database/socialDb';
 import { createJournalPost } from '../utils/journalPosts';
+import { checkAndAwardBadges } from '../utils/badgeEngine';
 
 const VISIBILITY_OPTIONS = [
   { value: 'public',  label: 'Public',  icon: 'globe',  desc: 'Anyone' },
@@ -109,6 +110,12 @@ export default function CreateJournalPostScreen({ route, navigation }) {
         visibility,
         artist_tag: artistTag.trim() || null,
       });
+
+      // Badge: First Post
+      try {
+        const allPosts = await getLocalPosts(100);
+        await checkAndAwardBadges('post_created', { postCount: allPosts.length });
+      } catch {}
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', 'Could not save post. Please try again.');

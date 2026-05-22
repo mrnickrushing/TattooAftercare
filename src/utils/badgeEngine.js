@@ -1,7 +1,16 @@
 /**
  * badgeEngine.js
  * Evaluates badge eligibility and awards badges + saves a notification.
- * Call checkAndAwardBadges(tattoos, careStreak) from HomeScreen on focus.
+ *
+ * Call checkAndAwardBadges(event, data) at badge-relevant trigger points.
+ *
+ * Supported events:
+ *   'tattoo_added'    - data: { tattoos }
+ *   'care_log_saved'  - data: { tattoos, streak, careLogs, tattooId }
+ *   'post_created'    - data: { postCount }
+ *   'follower_gained' - data: { followerCount }
+ *   'reaction_gained' - data: { reactionCount }
+ *   'check_all'       - data: { tattoos, streak, careLogs, postCount, followerCount }
  */
 import {
   earnBadge, saveNotification,
@@ -9,29 +18,153 @@ import {
 } from '../database/socialDb';
 
 /**
- * @param {Array} tattoos  - array of tattoo objects from getTattoos()
- * @param {number} streak  - current care streak count
- * @returns {Array}        - newly earned badge types (strings)
+ * Event-driven badge checker.
+ * @param {string} event
+ * @param {object} data
+ * @returns {Array} newly earned badge types
  */
-export async function checkAndAwardBadges(tattoos = [], streak = 0) {
+export async function checkAndAwardBadges(event, data = {}) {
+  // Legacy call signature: checkAndAwardBadges(tattoos, streak)
+  // Detect and handle backwards-compatible form
+  if (Array.isArray(event)) {
+    const tattoos = event;
+    const streak = data;
+    return _legacyCheck(tattoos, typeof streak === 'number' ? streak : 0);
+  }
+
   const newBadges = [];
 
-  // Fresh Ink — first tattoo ever added
+  switch (event) {
+    case 'tattoo_added': {
+      const { tattoos = [] } = data;
+      // Fresh Ink — first tattoo ever
+      if (tattoos.length >= 1) {
+        if (await earnBadge(BADGE_TYPES.FRESH_INK)) newBadges.push(BADGE_TYPES.FRESH_INK);
+      }
+      // Ink Collector — 5+ tattoos
+      if (tattoos.length >= 5) {
+        if (await earnBadge(BADGE_TYPES.INK_COLLECTOR)) newBadges.push(BADGE_TYPES.INK_COLLECTOR);
+      }
+      // Style Passport — 3+ unique styles
+      const styles = [...new Set(tattoos.map((t) => t.style).filter(Boolean))];
+      if (styles.length >= 3) {
+        if (await earnBadge(BADGE_TYPES.STYLE_PASSPORT)) newBadges.push(BADGE_TYPES.STYLE_PASSPORT);
+      }
+      break;
+    }
+
+    case 'care_log_saved': {
+      const { tattoos = [], streak = 0, careLogs = [], tattooId } = data;
+
+      // Dedicated — 7-day care streak
+      if (streak >= 7) {
+        if (await earnBadge(BADGE_TYPES.DEDICATED)) newBadges.push(BADGE_TYPES.DEDICATED);
+      }
+
+      // 30-Day Healer — any tattoo >= 30 days old
+      const hasOldTattoo = tattoos.some((t) => {
+        if (!t.date_tattooed) return false;
+        const days = Math.floor((Date.now() - new Date(t.date_tattooed).getTime()) / 86400000);
+        return days >= 30;
+      });
+      if (hasOldTattoo) {
+        if (await earnBadge(BADGE_TYPES.DAY_HEALER_30)) newBadges.push(BADGE_TYPES.DAY_HEALER_30);
+      }
+
+      // Iron Skin — 30-day log with zero "bad day" entries
+      // A "bad day" is a care log entry where health_status is 'attention' or 'doctor'
+      if (tattooId && careLogs.length >= 30) {
+        const badDays = careLogs.filter(
+          (l) => l.health_status === 'attention' || l.health_status === 'doctor'
+        );
+        if (badDays.length === 0) {
+          if (await earnBadge(BADGE_TYPES.IRON_SKIN)) newBadges.push(BADGE_TYPES.IRON_SKIN);
+        }
+      }
+
+      // Style Passport
+      const styles = [...new Set(tattoos.map((t) => t.style).filter(Boolean))];
+      if (styles.length >= 3) {
+        if (await earnBadge(BADGE_TYPES.STYLE_PASSPORT)) newBadges.push(BADGE_TYPES.STYLE_PASSPORT);
+      }
+      break;
+    }
+
+    case 'post_created': {
+      const { postCount = 1 } = data;
+      // First Post
+      if (postCount >= 1) {
+        if (await earnBadge(BADGE_TYPES.FIRST_POST)) newBadges.push(BADGE_TYPES.FIRST_POST);
+      }
+      break;
+    }
+
+    case 'follower_gained': {
+      const { followerCount = 0 } = data;
+      // Social Butterfly — 10+ followers
+      if (followerCount >= 10) {
+        if (await earnBadge(BADGE_TYPES.SOCIAL_BUTTERFLY)) newBadges.push(BADGE_TYPES.SOCIAL_BUTTERFLY);
+      }
+      break;
+    }
+
+    case 'reaction_gained': {
+      const { reactionCount = 0 } = data;
+      // Trendsetter — post reaches 50 reactions
+      if (reactionCount >= 50) {
+        if (await earnBadge(BADGE_TYPES.TRENDSETTER)) newBadges.push(BADGE_TYPES.TRENDSETTER);
+      }
+      break;
+    }
+
+    case 'check_all':
+    default: {
+      // Run all checks
+      const { tattoos = [], streak = 0, careLogs = [], postCount = 0, followerCount = 0 } = data;
+      const combined = [
+        ...(await checkAndAwardBadges('tattoo_added', { tattoos })),
+        ...(await checkAndAwardBadges('care_log_saved', { tattoos, streak, careLogs })),
+        ...(await checkAndAwardBadges('post_created', { postCount })),
+        ...(await checkAndAwardBadges('follower_gained', { followerCount })),
+      ];
+      // de-dupe
+      const unique = [...new Set(combined)];
+      return unique; // notifications already saved in sub-calls
+    }
+  }
+
+  // Save in-app notifications for each newly earned badge
+  for (const badgeType of newBadges) {
+    const meta = BADGE_META[badgeType];
+    if (meta) {
+      await saveNotification({
+        id: `badge-${badgeType}-${Date.now()}`,
+        type: 'badge',
+        body: `${meta.icon} You earned the "${meta.label}" badge! ${meta.desc}`,
+        is_read: 0,
+        created_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  return newBadges;
+}
+
+/**
+ * Legacy signature support: checkAndAwardBadges(tattoos[], streak)
+ */
+async function _legacyCheck(tattoos = [], streak = 0) {
+  const newBadges = [];
+
   if (tattoos.length >= 1) {
     if (await earnBadge(BADGE_TYPES.FRESH_INK)) newBadges.push(BADGE_TYPES.FRESH_INK);
   }
-
-  // Dedicated — 7-day care streak
   if (streak >= 7) {
     if (await earnBadge(BADGE_TYPES.DEDICATED)) newBadges.push(BADGE_TYPES.DEDICATED);
   }
-
-  // Iron Skin — 14-day care streak
   if (streak >= 14) {
     if (await earnBadge(BADGE_TYPES.IRON_SKIN)) newBadges.push(BADGE_TYPES.IRON_SKIN);
   }
-
-  // 30-Day Healer — any tattoo >= 30 days old
   const hasOldTattoo = tattoos.some((t) => {
     if (!t.date_tattooed) return false;
     const days = Math.floor((Date.now() - new Date(t.date_tattooed).getTime()) / 86400000);
@@ -40,30 +173,25 @@ export async function checkAndAwardBadges(tattoos = [], streak = 0) {
   if (hasOldTattoo) {
     if (await earnBadge(BADGE_TYPES.DAY_HEALER_30)) newBadges.push(BADGE_TYPES.DAY_HEALER_30);
   }
-
-  // Ink Collector — 5+ tattoos
   if (tattoos.length >= 5) {
     if (await earnBadge(BADGE_TYPES.INK_COLLECTOR)) newBadges.push(BADGE_TYPES.INK_COLLECTOR);
   }
-
-  // Style Passport — 3+ unique styles
   const styles = [...new Set(tattoos.map((t) => t.style).filter(Boolean))];
   if (styles.length >= 3) {
     if (await earnBadge(BADGE_TYPES.STYLE_PASSPORT)) newBadges.push(BADGE_TYPES.STYLE_PASSPORT);
   }
-
-  // Save a notification for each newly earned badge
   for (const badgeType of newBadges) {
     const meta = BADGE_META[badgeType];
-    await saveNotification({
-      id: `badge-${badgeType}-${Date.now()}`,
-      type: 'badge',
-      body: `${meta.icon} You earned the "${meta.label}" badge! ${meta.desc}`,
-      is_read: 0,
-      created_at: new Date().toISOString(),
-    });
+    if (meta) {
+      await saveNotification({
+        id: `badge-${badgeType}-${Date.now()}`,
+        type: 'badge',
+        body: `${meta.icon} You earned the "${meta.label}" badge! ${meta.desc}`,
+        is_read: 0,
+        created_at: new Date().toISOString(),
+      });
+    }
   }
-
   return newBadges;
 }
 
