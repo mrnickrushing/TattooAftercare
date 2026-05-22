@@ -1,3 +1,8 @@
+/**
+ * AppNavigator.js — Phase 5 update
+ * Adds: ExploreScreen, ArtistProfileScreen, BadgeCabinetScreen, FriendsLeaderboardScreen
+ * Explore replaces the old Social tab; Profile tab gets Badges + Leaderboard as nested routes.
+ */
 import React from 'react';
 import { StyleSheet, Platform, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -17,6 +22,10 @@ import CreateJournalPostScreen from '../screens/CreateJournalPostScreen';
 import SocialFeedScreen from '../screens/SocialFeedScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import ExploreScreen from '../screens/ExploreScreen';
+import ArtistProfileScreen from '../screens/ArtistProfileScreen';
+import BadgeCabinetScreen from '../screens/BadgeCabinetScreen';
+import FriendsLeaderboardScreen from '../screens/FriendsLeaderboardScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -64,22 +73,27 @@ function MyTattoosStack() {
   );
 }
 
-function CareLogStack() {
+// Explore: public grid + artist profiles
+function ExploreStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen name="CareLog" component={CareLogScreen} options={{ title: 'Care Log' }} />
+      <Stack.Screen name="Explore" component={ExploreScreen} options={{ title: 'Explore' }} />
+      <Stack.Screen name="ArtistProfile" component={ArtistProfileScreen} options={({ route }) => ({ title: route.params?.artistName || 'Artist' })} />
+      <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile' }} />
     </Stack.Navigator>
   );
 }
 
-function LearnStack() {
+// Social feed
+function SocialStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen name="Learn" component={LearnScreen} options={{ title: 'Healing Guide' }} />
+      <Stack.Screen name="SocialFeed" component={SocialFeedScreen} options={{ title: 'Ink Feed' }} />
     </Stack.Navigator>
   );
 }
 
+// Portfolio
 function PortfolioStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
@@ -90,19 +104,14 @@ function PortfolioStack() {
   );
 }
 
-function SocialStack() {
-  return (
-    <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen name="SocialFeed" component={SocialFeedScreen} options={{ title: 'Ink Feed' }} />
-    </Stack.Navigator>
-  );
-}
-
+// Profile: own profile, notifications, badges, leaderboard
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'My Profile' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
+      <Stack.Screen name="BadgeCabinet" component={BadgeCabinetScreen} options={{ title: 'Badges & Achievements' }} />
+      <Stack.Screen name="FriendsLeaderboard" component={FriendsLeaderboardScreen} options={{ title: 'Leaderboard' }} />
     </Stack.Navigator>
   );
 }
@@ -129,11 +138,11 @@ export default function AppNavigator() {
         tabBarInactiveTintColor: COLORS.tabBarInactive,
         tabBarIcon: ({ color, size }) => {
           const icons = {
-            HomeTab: 'home',
-            TattoosTab: 'layers',
-            SocialTab: 'rss',
+            HomeTab:      'home',
+            TattoosTab:   'layers',
+            ExploreTab:   'compass',
             PortfolioTab: 'image',
-            ProfileTab: 'user',
+            ProfileTab:   'user',
           };
           return <Feather name={icons[route.name] || 'circle'} size={size - 2} color={color} />;
         },
@@ -144,11 +153,11 @@ export default function AppNavigator() {
         },
       })}
     >
-      <Tab.Screen name="HomeTab" component={HomeStack} options={{ tabBarLabel: 'Home' }} />
-      <Tab.Screen name="TattoosTab" component={MyTattoosStack} options={{ tabBarLabel: 'Tattoos' }} />
-      <Tab.Screen name="SocialTab" component={SocialStack} options={{ tabBarLabel: 'Feed' }} />
-      <Tab.Screen name="PortfolioTab" component={PortfolioStack} options={{ tabBarLabel: 'Portfolio' }} />
-      <Tab.Screen name="ProfileTab" component={ProfileStack} options={{ tabBarLabel: 'Profile' }} />
+      <Tab.Screen name="HomeTab"      component={HomeStack}      options={{ tabBarLabel: 'Home' }} />
+      <Tab.Screen name="TattoosTab"   component={MyTattoosStack}  options={{ tabBarLabel: 'Tattoos' }} />
+      <Tab.Screen name="ExploreTab"   component={ExploreStack}    options={{ tabBarLabel: 'Explore' }} />
+      <Tab.Screen name="PortfolioTab" component={PortfolioStack}  options={{ tabBarLabel: 'Portfolio' }} />
+      <Tab.Screen name="ProfileTab"   component={ProfileStack}    options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
 }
