@@ -1,3 +1,12 @@
+/**
+ * UserProfileScreen.js  — Issue #16
+ *
+ * Changes:
+ *  - isOwnProfile flag: when navigated with a userId param that differs from
+ *    the local user's ID, shows Follow / Unfollow button instead of Edit Profile.
+ *  - followUser / unfollowUser wired with optimistic state updates.
+ *  - follower_count refreshes live after follow/unfollow action.
+ */
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -7,28 +16,51 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-import { getLocalUser, saveLocalUser } from '../utils/localUser';
-import { getLocalPostsByUser } from '../database/socialDb';
-import { getUserBadges, BADGE_META } from '../database/socialDb';
+import {
+  getLocalUser, saveLocalUser,
+  getLocalPostsByUser,
+  getUserBadges, BADGE_META,
+  followUser, unfollowUser, isFollowing,
+} from '../database/socialDb';
 
-export default function UserProfileScreen({ navigation }) {
+export default function UserProfileScreen({ route, navigation }) {
+  // If a userId param is passed (from Explore -> user tap) we're viewing someone else.
+  const viewingUserId = route?.params?.userId || null;
+
+  const [me, setMe] = useState(null);
   const [user, setUser] = useState(null);
+  const [isOwnProfile, setIsOwnProfile] = useState(true);
+  const [following, setFollowing] = useState(false);
   const [posts, setPosts] = useState([]);
   const [badges, setBadges] = useState([]);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ username: '', display_name: '', bio: '' });
 
   const load = useCallback(async () => {
-    const u = await getLocalUser();
-    setUser(u);
-    if (u) {
-      setForm({ username: u.username || '', display_name: u.display_name || '', bio: u.bio || '' });
-      const p = await getLocalPostsByUser(u.id);
+    const localUser = await getLocalUser();
+    setMe(localUser);
+
+    const targetId = viewingUserId || localUser?.id;
+    const isOwn = !viewingUserId || viewingUserId === localUser?.id;
+    setIsOwnProfile(isOwn);
+
+    // For own profile, use localUser directly; for others use the same table (demo: use localUser as fallback)
+    const profileUser = isOwn ? localUser : (await getLocalUser()); // phase-2: swap for getCachedUser(viewingUserId)
+    setUser(profileUser);
+
+    if (profileUser) {
+      setForm({ username: profileUser.username || '', display_name: profileUser.display_name || '', bio: profileUser.bio || '' });
+      const p = await getLocalPostsByUser(targetId || profileUser.id);
       setPosts(p);
     }
     const b = await getUserBadges();
     setBadges(b);
-  }, []);
+
+    if (!isOwn && localUser?.id && viewingUserId) {
+      const f = await isFollowing(localUser.id, viewingUserId);
+      setFollowing(f);
+    }
+  }, [viewingUserId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -49,8 +81,21 @@ export default function UserProfileScreen({ navigation }) {
     }
   };
 
+  const handleFollowToggle = async () => {
+    if (!me?.id || !viewingUserId) return;
+    if (following) {
+      await unfollowUser(me.id, viewingUserId);
+      setFollowing(false);
+      setUser((prev) => prev ? { ...prev, follower_count: Math.max(0, (prev.follower_count || 0) - 1) } : prev);
+    } else {
+      await followUser(me.id, viewingUserId);
+      setFollowing(true);
+      setUser((prev) => prev ? { ...prev, follower_count: (prev.follower_count || 0) + 1 } : prev);
+    }
+  };
+
   const stats = [
-    { label: 'Posts', value: posts.length },
+    { label: 'Posts',     value: posts.length },
     { label: 'Followers', value: user?.follower_count || 0 },
     { label: 'Following', value: user?.following_count || 0 },
   ];
@@ -59,7 +104,7 @@ export default function UserProfileScreen({ navigation }) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       {/* Avatar */}
       <View style={styles.avatarSection}>
-        <TouchableOpacity onPress={handleAvatarPick} activeOpacity={0.8}>
+        <TouchableOpacity onPress={isOwnProfile ? handleAvatarPick : undefined} activeOpacity={isOwnProfile ? 0.8 : 1}>
           {user?.avatar_uri
             ? <Image source={{ uri: user.avatar_uri }} style={styles.avatar} />
             : (
@@ -67,9 +112,11 @@ export default function UserProfileScreen({ navigation }) {
                 <Text style={styles.avatarInitial}>{(user?.username || 'U')[0].toUpperCase()}</Text>
               </View>
             )}
-          <View style={styles.avatarEditBadge}>
-            <Feather name="camera" size={13} color={COLORS.textInverse} />
-          </View>
+          {isOwnProfile && (
+            <View style={styles.avatarEditBadge}>
+              <Feather name="camera" size={13} color={COLORS.textInverse} />
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -83,53 +130,76 @@ export default function UserProfileScreen({ navigation }) {
         ))}
       </View>
 
-      {/* Profile info / edit */}
-      {editing ? (
-        <View style={styles.editForm}>
-          <Text style={styles.fieldLabel}>USERNAME</Text>
-          <TextInput
-            style={styles.input}
-            value={form.username}
-            onChangeText={(v) => setForm((p) => ({ ...p, username: v }))}
-            placeholder="username"
-            placeholderTextColor={COLORS.textMuted}
-            autoCapitalize="none"
-          />
-          <Text style={styles.fieldLabel}>DISPLAY NAME</Text>
-          <TextInput
-            style={styles.input}
-            value={form.display_name}
-            onChangeText={(v) => setForm((p) => ({ ...p, display_name: v }))}
-            placeholder="Display name"
-            placeholderTextColor={COLORS.textMuted}
-          />
-          <Text style={styles.fieldLabel}>BIO</Text>
-          <TextInput
-            style={[styles.input, styles.inputMulti]}
-            value={form.bio}
-            onChangeText={(v) => setForm((p) => ({ ...p, bio: v }))}
-            placeholder="Tell your ink story…"
-            placeholderTextColor={COLORS.textMuted}
-            multiline
-            numberOfLines={3}
-          />
-          <View style={styles.editActions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditing(false)} activeOpacity={0.75}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.75}>
-              <Text style={styles.saveBtnText}>Save</Text>
+      {/* Profile info / edit (own) or Follow button (other) */}
+      {isOwnProfile ? (
+        editing ? (
+          <View style={styles.editForm}>
+            <Text style={styles.fieldLabel}>USERNAME</Text>
+            <TextInput
+              style={styles.input}
+              value={form.username}
+              onChangeText={(v) => setForm((p) => ({ ...p, username: v }))}
+              placeholder="username"
+              placeholderTextColor={COLORS.textMuted}
+              autoCapitalize="none"
+            />
+            <Text style={styles.fieldLabel}>DISPLAY NAME</Text>
+            <TextInput
+              style={styles.input}
+              value={form.display_name}
+              onChangeText={(v) => setForm((p) => ({ ...p, display_name: v }))}
+              placeholder="Display name"
+              placeholderTextColor={COLORS.textMuted}
+            />
+            <Text style={styles.fieldLabel}>BIO</Text>
+            <TextInput
+              style={[styles.input, styles.inputMulti]}
+              value={form.bio}
+              onChangeText={(v) => setForm((p) => ({ ...p, bio: v }))}
+              placeholder="Tell your ink story…"
+              placeholderTextColor={COLORS.textMuted}
+              multiline
+              numberOfLines={3}
+            />
+            <View style={styles.editActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditing(false)} activeOpacity={0.75}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.75}>
+                <Text style={styles.saveBtnText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.profileInfo}>
+            <Text style={styles.displayName}>{user?.display_name || user?.username || 'Set up your profile'}</Text>
+            {user?.username && <Text style={styles.username}>@{user.username}</Text>}
+            {user?.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
+            <TouchableOpacity style={styles.editProfileBtn} onPress={() => setEditing(true)} activeOpacity={0.75}>
+              <Feather name="edit-2" size={13} color={COLORS.accent} />
+              <Text style={styles.editProfileBtnText}>Edit Profile</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        )
       ) : (
+        // Viewing another user's profile
         <View style={styles.profileInfo}>
-          <Text style={styles.displayName}>{user?.display_name || user?.username || 'Set up your profile'}</Text>
+          <Text style={styles.displayName}>{user?.display_name || user?.username || 'Ink Artist'}</Text>
           {user?.username && <Text style={styles.username}>@{user.username}</Text>}
           {user?.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
-          <TouchableOpacity style={styles.editProfileBtn} onPress={() => setEditing(true)} activeOpacity={0.75}>
-            <Feather name="edit-2" size={13} color={COLORS.accent} />
-            <Text style={styles.editProfileBtnText}>Edit Profile</Text>
+          <TouchableOpacity
+            style={[styles.followBtn, following && styles.followBtnActive]}
+            onPress={handleFollowToggle}
+            activeOpacity={0.8}
+          >
+            <Feather
+              name={following ? 'user-check' : 'user-plus'}
+              size={14}
+              color={following ? COLORS.textInverse : COLORS.accent}
+            />
+            <Text style={[styles.followBtnText, following && styles.followBtnTextActive]}>
+              {following ? 'Following' : 'Follow'}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -157,16 +227,16 @@ export default function UserProfileScreen({ navigation }) {
         <Text style={styles.sectionLabel}>INK JOURNAL ({posts.length})</Text>
         {posts.length === 0 ? (
           <View style={styles.emptyPosts}>
-            <Text style={styles.emptyPostsText}>No journal posts yet. Open a tattoo and tap "Add Journal Post".</Text>
+            <Text style={styles.emptyPostsText}>
+              {isOwnProfile
+                ? 'No journal posts yet. Open a tattoo and tap "Add Journal Post".'
+                : 'No public posts yet.'}
+            </Text>
           </View>
         ) : (
           <View style={styles.postsGrid}>
             {posts.map((post) => (
-              <TouchableOpacity
-                key={post.id}
-                style={styles.postGridThumb}
-                activeOpacity={0.85}
-              >
+              <TouchableOpacity key={post.id} style={styles.postGridThumb} activeOpacity={0.85}>
                 {post.photo_uris?.[0]
                   ? <Image source={{ uri: post.photo_uris[0] }} style={styles.postGridImage} />
                   : (
@@ -195,27 +265,21 @@ const styles = StyleSheet.create({
   avatar: { width: 88, height: 88, borderRadius: RADIUS.full, borderWidth: 2, borderColor: COLORS.accentBorder },
   avatarFallback: {
     width: 88, height: 88, borderRadius: RADIUS.full,
-    backgroundColor: COLORS.card,
-    borderWidth: 2, borderColor: COLORS.accentBorder,
+    backgroundColor: COLORS.card, borderWidth: 2, borderColor: COLORS.accentBorder,
     alignItems: 'center', justifyContent: 'center',
   },
   avatarInitial: { color: COLORS.accent, fontSize: 36, fontWeight: '700' },
   avatarEditBadge: {
     position: 'absolute', bottom: 0, right: 0,
     width: 26, height: 26, borderRadius: RADIUS.full,
-    backgroundColor: COLORS.accent,
-    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: COLORS.background,
   },
   statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: 'row', justifyContent: 'space-around',
     paddingVertical: SPACING.lg,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: COLORS.border,
-    marginHorizontal: SPACING.lg,
-    marginBottom: SPACING.lg,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: COLORS.border,
+    marginHorizontal: SPACING.lg, marginBottom: SPACING.lg,
   },
   statCell: { alignItems: 'center', gap: 2 },
   statValue: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '700' },
@@ -227,78 +291,63 @@ const styles = StyleSheet.create({
   editProfileBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingVertical: SPACING.sm, paddingHorizontal: SPACING.lg,
-    borderRadius: RADIUS.full,
-    borderWidth: 1, borderColor: COLORS.accentBorder,
-    marginTop: SPACING.sm,
+    borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.accentBorder, marginTop: SPACING.sm,
   },
   editProfileBtnText: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
+  followBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: SPACING.sm, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xl,
+    borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.accentBorder,
+    backgroundColor: 'transparent',
+  },
+  followBtnActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent, ...SHADOWS.gold },
+  followBtnText: { color: COLORS.accent, fontSize: 14, fontWeight: '700' },
+  followBtnTextActive: { color: COLORS.textInverse },
   editForm: { paddingHorizontal: SPACING.xl, marginBottom: SPACING.xl, gap: SPACING.sm },
   fieldLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginTop: SPACING.sm },
   input: {
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    color: COLORS.textPrimary,
-    fontSize: 14,
+    backgroundColor: COLORS.card, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.border,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
+    color: COLORS.textPrimary, fontSize: 14,
   },
   inputMulti: { minHeight: 72, textAlignVertical: 'top' },
   editActions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
   cancelBtn: {
-    flex: 1, paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border,
-    alignItems: 'center',
+    flex: 1, paddingVertical: SPACING.md, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.border, alignItems: 'center',
   },
   cancelBtnText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
   saveBtn: {
-    flex: 1, paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md, backgroundColor: COLORS.accent,
-    alignItems: 'center', ...SHADOWS.gold,
+    flex: 1, paddingVertical: SPACING.md, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.accent, alignItems: 'center', ...SHADOWS.gold,
   },
   saveBtnText: { color: COLORS.textInverse, fontSize: 14, fontWeight: '700' },
   section: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.xl },
   sectionLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: SPACING.sm },
   badgesRow: { gap: SPACING.sm },
   badgeCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.borderGold,
-    padding: SPACING.md,
-    alignItems: 'center',
-    minWidth: 72,
-    gap: 4,
+    backgroundColor: COLORS.card, borderRadius: RADIUS.lg,
+    borderWidth: 1, borderColor: COLORS.borderGold,
+    padding: SPACING.md, alignItems: 'center', minWidth: 72, gap: 4,
   },
   badgeIcon: { fontSize: 24 },
   badgeLabel: { color: COLORS.textSecondary, fontSize: 10, fontWeight: '700', textAlign: 'center' },
-  postsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.xs,
-  },
+  postsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs },
   postGridThumb: {
-    width: '31.5%',
-    aspectRatio: 1,
-    borderRadius: RADIUS.md,
-    overflow: 'hidden',
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.borderGold,
+    width: '31.5%', aspectRatio: 1, borderRadius: RADIUS.md,
+    overflow: 'hidden', backgroundColor: COLORS.card,
+    borderWidth: 1, borderColor: COLORS.borderGold,
   },
   postGridImage: { width: '100%', height: '100%' },
   postGridImageFallback: {
     width: '100%', height: '100%',
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.surface,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surface,
   },
   postGridDay: { color: COLORS.textMuted, fontSize: 11, fontWeight: '600' },
   postGridDayBadge: {
     position: 'absolute', bottom: 4, left: 4,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 5, paddingVertical: 2,
+    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: RADIUS.full, paddingHorizontal: 5, paddingVertical: 2,
   },
   postGridDayBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
   emptyPosts: { padding: SPACING.lg, alignItems: 'center' },
