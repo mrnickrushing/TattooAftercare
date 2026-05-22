@@ -9,7 +9,7 @@ export default function StreakBadge({ streak }) {
     <View style={styles.badge}>
       <Text style={styles.flame}>🔥</Text>
       <Text style={styles.count}>{streak}</Text>
-      <Text style={styles.label}>DAY STREAK</Text>
+      <Text style={styles.label}>DAY{'\n'}STREAK</Text>
     </View>
   );
 }
@@ -25,13 +25,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.accentBorder,
     gap: 4,
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   flame: {
-    fontSize: 13,
+    fontSize: 14,
   },
   count: {
     color: COLORS.accent,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
@@ -40,5 +45,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.8,
+    lineHeight: 11,
   },
 });

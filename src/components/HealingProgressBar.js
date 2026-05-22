@@ -75,8 +75,17 @@ export default function HealingProgressBar({ dateTattooed, style }) {
                 key={key}
                 style={[
                   styles.dot,
-                  isActive && { backgroundColor: COLORS.accent, width: 8, height: 8 },
-                  isPast && !isActive && { backgroundColor: COLORS.accentDim },
+                  isActive && {
+                    backgroundColor: COLORS.accent,
+                    width: 10,
+                    height: 10,
+                    shadowColor: stageInfo.color,
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0.7,
+                    shadowRadius: 4,
+                    elevation: 4,
+                  },
+                  isPast && !isActive && { backgroundColor: COLORS.accentDim, width: 8, height: 8 },
                   !isActive && !isPast && { backgroundColor: COLORS.border },
                 ]}
               />
@@ -107,7 +116,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   stageText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
     letterSpacing: 1.0,
     textTransform: 'uppercase',
@@ -123,7 +132,7 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
   track: {
-    height: 4,
+    height: 6,
     backgroundColor: COLORS.border,
     borderRadius: RADIUS.full,
     overflow: 'hidden',

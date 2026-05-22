@@ -8,7 +8,10 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
+
+const BRI_LOGO = require('../../assets/blood-raven-logo.png');
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -164,12 +167,18 @@ export default function HomeScreen({ navigation }) {
       >
         {/* Header bar */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.logoLine1}>BLOOD RAVEN INK</Text>
-            <Text style={styles.logoLine2}>AFTERCARE</Text>
+          <View style={styles.headerLeft}>
+            <View style={styles.logoBadge}>
+              <Image source={BRI_LOGO} style={styles.logoImage} resizeMode="contain" />
+            </View>
+            <View style={styles.headerTextBlock}>
+              <Text style={styles.logoLine1}>BLOOD RAVEN INK</Text>
+              <Text style={styles.logoLine2}>TATTOO AFTERCARE</Text>
+            </View>
           </View>
           <StreakBadge streak={streak} />
         </View>
+        <View style={styles.headerDivider} />
 
         {/* Date chip */}
         <View style={styles.dateChipRow}>
@@ -185,9 +194,9 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.statLabel}>ACTIVE</Text>
               <Text style={styles.statValue}>{activeTattoos.length}</Text>
             </View>
-            <View style={[styles.statCard, SHADOWS.card]}>
+            <View style={[styles.statCard, styles.statCardStreak, SHADOWS.card]}>
               <Text style={styles.statLabel}>STREAK</Text>
-              <Text style={[styles.statValue, { color: COLORS.accent }]}>{streak}</Text>
+              <Text style={[styles.statValue, styles.statValueAccent]}>{streak}</Text>
             </View>
             <View style={[styles.statCard, SHADOWS.card]}>
               <Text style={styles.statLabel}>DAYS IN</Text>
@@ -252,7 +261,9 @@ export default function HomeScreen({ navigation }) {
 
           {activeTattoos.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🖊️</Text>
+              <View style={styles.emptyLogoContainer}>
+                <Image source={BRI_LOGO} style={styles.emptyLogoImage} resizeMode="contain" />
+              </View>
               <Text style={styles.emptyTitle}>No tattoos tracked yet</Text>
               <Text style={styles.emptySubtitle}>
                 Start tracking your healing journey and never miss a care step.
@@ -302,21 +313,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  logoBadge: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: '#F5F0E8',
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 44,
+    height: 44,
+  },
+  headerTextBlock: {
+    gap: 2,
   },
   logoLine1: {
     color: COLORS.accent,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 3,
-    lineHeight: 14,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    lineHeight: 17,
   },
   logoLine2: {
-    color: COLORS.accent,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 3,
-    lineHeight: 14,
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontWeight: '600',
+    letterSpacing: 2,
+    lineHeight: 12,
+  },
+  headerDivider: {
+    height: 1,
+    backgroundColor: COLORS.accentBorder,
+    marginBottom: SPACING.lg,
   },
   dateChipRow: {
     marginBottom: SPACING.lg,
@@ -345,10 +384,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.card,
     borderRadius: RADIUS.lg,
-    padding: SPACING.md,
+    paddingVertical: 16,
+    paddingHorizontal: SPACING.md,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  statCardStreak: {
+    borderTopWidth: 2,
+    borderTopColor: COLORS.accentBorder,
   },
   statLabel: {
     color: COLORS.textMuted,
@@ -360,9 +404,12 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: COLORS.textPrimary,
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     letterSpacing: -0.5,
+  },
+  statValueAccent: {
+    color: COLORS.accent,
   },
   section: {
     marginBottom: SPACING.xl,
@@ -375,8 +422,8 @@ const styles = StyleSheet.create({
   },
   sectionHeaderText: {
     color: COLORS.textSecondary,
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
@@ -436,6 +483,22 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xxxl,
     gap: SPACING.md,
   },
+  emptyLogoContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 20,
+    backgroundColor: '#F5F0E8',
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: SPACING.sm,
+  },
+  emptyLogoImage: {
+    width: 88,
+    height: 88,
+  },
   emptyIcon: {
     fontSize: 48,
     marginBottom: SPACING.sm,
@@ -443,7 +506,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: COLORS.textPrimary,
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: -0.2,
   },
   emptySubtitle: {
