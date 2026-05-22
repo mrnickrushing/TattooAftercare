@@ -269,6 +269,18 @@ export default function CareLogScreen({ navigation }) {
         >
           <Text style={styles.saveButtonText}>{saving ? 'Saving...' : existingLogId ? 'Update Log' : 'Save Log'}</Text>
         </TouchableOpacity>
+
+        {/* Create Journal Post shortcut */}
+        {selectedTattoo && (
+          <TouchableOpacity
+            style={styles.journalPostButton}
+            onPress={() => navigation.navigate('CreateJournalPost', { tattoo: selectedTattoo })}
+            activeOpacity={0.85}
+          >
+            <Feather name="edit-3" size={15} color={COLORS.accent} />
+            <Text style={styles.journalPostButtonText}>Add Journal Post</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -371,4 +383,11 @@ const styles = StyleSheet.create({
   emptySubtitle: { ...FONTS.body, textAlign: 'center', marginBottom: SPACING.xl },
   emptyButton: { backgroundColor: COLORS.accent, borderRadius: RADIUS.md, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl, ...SHADOWS.gold },
   emptyButtonText: { color: COLORS.textInverse, fontSize: 14, fontWeight: '700' },
+  journalPostButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
+    marginHorizontal: SPACING.lg, marginTop: SPACING.md, marginBottom: SPACING.lg,
+    paddingVertical: SPACING.md, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.accentBorder,
+  },
+  journalPostButtonText: { color: COLORS.accent, fontSize: 14, fontWeight: '600' },
 });

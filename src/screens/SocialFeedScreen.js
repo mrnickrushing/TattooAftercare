@@ -25,7 +25,7 @@ import {
   getLocalPosts, deleteLocalPost,
   saveCommentLocal, getCommentsForPost, deleteCommentLocal,
   upsertReactionLocal, removeReactionLocal, getMyReaction,
-  getLocalUser,
+  getLocalUser, createNotification,
 } from '../database/socialDb';
 import * as SQLite from 'expo-sqlite';
 
@@ -42,11 +42,11 @@ async function updatePostReactionCount(postId, delta) {
   }
 }
 
+// Issue #17: exactly 3 reaction types
 const REACTIONS = [
   { type: 'fire', emoji: '🔥', label: 'Fire' },
   { type: 'love', emoji: '❤️', label: 'Love' },
   { type: 'ink',  emoji: '💉', label: 'Ink'  },
-  { type: 'wow',  emoji: '😮', label: 'Wow'  },
 ];
 
 export default function SocialFeedScreen({ navigation }) {
@@ -59,6 +59,7 @@ export default function SocialFeedScreen({ navigation }) {
   const [reactionPickerPost, setReactionPickerPost] = useState(null);
   const [myReactions, setMyReactions] = useState({});
   const [postComments, setPostComments] = useState({});
+  const [healingQuestionPost, setHealingQuestionPost] = useState({}); // postId -> bool: is "how's it healing?" mode
   const me = useRef(null);
 
   const loadFeed = useCallback(async (silent = false) => {
@@ -101,7 +102,21 @@ export default function SocialFeedScreen({ navigation }) {
       const id = `rxn_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       await upsertReactionLocal({ id, post_id: postId, user_id: me.current.id, reaction_type: reactionType });
       const delta = existing ? 0 : 1; // switching type doesn't change total count
-      if (delta > 0) await updatePostReactionCount(postId, 1);
+      if (delta > 0) {
+        await updatePostReactionCount(postId, 1);
+        // Notify post owner (if different from current user)
+        const post = posts.find((p) => p.id === postId);
+        if (post && post.user_id && post.user_id !== me.current.id) {
+          const rxn = REACTIONS.find((r) => r.type === reactionType);
+          await createNotification({
+            userId: post.user_id,
+            type: 'reaction',
+            actorId: me.current.id,
+            refId: postId,
+            body: `@${me.current.username || 'Someone'} reacted ${rxn?.emoji || ''} to your post.`,
+          });
+        }
+      }
       setMyReactions((prev) => ({ ...prev, [postId]: reactionType }));
       if (delta > 0) setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, reaction_count: (p.reaction_count || 0) + 1 } : p));
     }
@@ -123,13 +138,16 @@ export default function SocialFeedScreen({ navigation }) {
     const body = (commentInputs[postId] || '').trim();
     if (!body || !me.current) return;
     const parentInfo = replyingTo[postId];
+    const isHealingQ = !!healingQuestionPost[postId];
+    // Prefix healing question comments so they can be visually identified
+    const commentBody = isHealingQ ? `[healing] ${body}` : body;
     const comment = {
       id: `cmt_${Date.now()}_${Math.random().toString(36).slice(2)}`,
       post_id: postId,
       user_id: me.current.id,
       username: me.current.username || 'You',
       avatar_uri: me.current.avatar_uri || null,
-      body,
+      body: commentBody,
       parent_comment_id: parentInfo?.commentId || null,
       created_at: new Date().toISOString(),
     };
@@ -137,8 +155,20 @@ export default function SocialFeedScreen({ navigation }) {
     setPostComments((prev) => ({ ...prev, [postId]: [...(prev[postId] || []), comment] }));
     setCommentInputs((prev) => ({ ...prev, [postId]: '' }));
     setReplyingTo((prev) => { const n = { ...prev }; delete n[postId]; return n; });
+    setHealingQuestionPost((prev) => { const n = { ...prev }; delete n[postId]; return n; });
     // bump comment_count in state
     setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, comment_count: (p.comment_count || 0) + 1 } : p));
+    // Notify post owner
+    const post = posts.find((p) => p.id === postId);
+    if (post && post.user_id && post.user_id !== me.current.id) {
+      await createNotification({
+        userId: post.user_id,
+        type: 'comment',
+        actorId: me.current.id,
+        refId: postId,
+        body: `@${me.current.username || 'Someone'} commented: "${body.slice(0, 60)}${body.length > 60 ? '…' : ''}"`,
+      });
+    }
   };
 
   const handleDeleteComment = async (postId, commentId) => {
@@ -371,31 +401,46 @@ export default function SocialFeedScreen({ navigation }) {
                     {topComments.map((comment) => (
                       <View key={comment.id}>
                         {/* Top-level comment */}
-                        <View style={styles.commentRow}>
-                          <View style={styles.commentAvatarFallback}>
-                            <Text style={styles.commentAvatarInitial}>
-                              {(comment.username || 'U')[0].toUpperCase()}
-                            </Text>
-                          </View>
-                          <View style={styles.commentContent}>
-                            <Text style={styles.commentUsername}>{comment.username || 'User'}</Text>
-                            <Text style={styles.commentBody}>{comment.body}</Text>
-                            <TouchableOpacity
-                              onPress={() => handleReplyTo(post.id, comment.id, comment.username || 'user')}
-                              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                            >
-                              <Text style={styles.replyBtn}>Reply</Text>
-                            </TouchableOpacity>
-                          </View>
-                          {comment.user_id === me.current?.id && (
-                            <TouchableOpacity
-                              onPress={() => handleDeleteComment(post.id, comment.id)}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Feather name="x" size={12} color={COLORS.textMuted} />
-                            </TouchableOpacity>
-                          )}
-                        </View>
+                        {(() => {
+                          const isHealingComment = comment.body?.startsWith('[healing] ');
+                          const displayBody = isHealingComment
+                            ? comment.body.replace('[healing] ', '')
+                            : comment.body;
+                          return (
+                            <View style={[styles.commentRow, isHealingComment && styles.healingCommentRow]}>
+                              <View style={styles.commentAvatarFallback}>
+                                <Text style={styles.commentAvatarInitial}>
+                                  {(comment.username || 'U')[0].toUpperCase()}
+                                </Text>
+                              </View>
+                              <View style={styles.commentContent}>
+                                {isHealingComment && (
+                                  <View style={styles.healingBadge}>
+                                    <Text style={styles.healingBadgeText}>💉 How's it healing?</Text>
+                                  </View>
+                                )}
+                                <Text style={styles.commentUsername}>{comment.username || 'User'}</Text>
+                                <Text style={[styles.commentBody, isHealingComment && styles.healingCommentBody]}>
+                                  {displayBody}
+                                </Text>
+                                <TouchableOpacity
+                                  onPress={() => handleReplyTo(post.id, comment.id, comment.username || 'user')}
+                                  hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                                >
+                                  <Text style={styles.replyBtn}>Reply</Text>
+                                </TouchableOpacity>
+                              </View>
+                              {comment.user_id === me.current?.id && (
+                                <TouchableOpacity
+                                  onPress={() => handleDeleteComment(post.id, comment.id)}
+                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                >
+                                  <Feather name="x" size={12} color={COLORS.textMuted} />
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          );
+                        })()}
 
                         {/* Nested replies */}
                         {repliesFor(comment.id).map((reply) => (
@@ -438,6 +483,26 @@ export default function SocialFeedScreen({ navigation }) {
                           </TouchableOpacity>
                         </View>
                       )}
+                      {/* "How's it healing?" toggle — only on top-level comments */}
+                      {!replyInfo && (
+                        <TouchableOpacity
+                          style={[
+                            styles.healingToggle,
+                            healingQuestionPost[post.id] && styles.healingToggleActive,
+                          ]}
+                          onPress={() =>
+                            setHealingQuestionPost((prev) => ({
+                              ...prev,
+                              [post.id]: !prev[post.id],
+                            }))
+                          }
+                          activeOpacity={0.75}
+                        >
+                          <Text style={styles.healingToggleText}>
+                            💉 {healingQuestionPost[post.id] ? "How's it healing? ✓" : "How's it healing?"}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                       <View style={styles.commentInputWrap}>
                         <TextInput
                           style={styles.commentInput}
@@ -445,7 +510,13 @@ export default function SocialFeedScreen({ navigation }) {
                           onChangeText={(v) =>
                             setCommentInputs((prev) => ({ ...prev, [post.id]: v }))
                           }
-                          placeholder={replyInfo ? `Reply to @${replyInfo.username}…` : 'Add a comment…'}
+                          placeholder={
+                            healingQuestionPost[post.id]
+                              ? "How's it healing? Describe the progress…"
+                              : replyInfo
+                              ? `Reply to @${replyInfo.username}…`
+                              : 'Add a comment…'
+                          }
                           placeholderTextColor={COLORS.textMuted}
                           returnKeyType="send"
                           onSubmitEditing={() => handleAddComment(post.id)}
@@ -606,4 +677,32 @@ const styles = StyleSheet.create({
   },
   commentInput: { flex: 1, color: COLORS.textPrimary, fontSize: 13, paddingVertical: SPACING.sm },
   sendBtn: { padding: SPACING.xs },
+
+  // Healing comment styles (Issue #17)
+  healingCommentRow: {
+    backgroundColor: 'rgba(200,169,81,0.06)',
+    borderRadius: RADIUS.md,
+    marginHorizontal: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
+  },
+  healingBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    marginBottom: 3,
+  },
+  healingBadgeText: {
+    color: COLORS.accent, fontSize: 10, fontWeight: '700', letterSpacing: 0.3,
+  },
+  healingCommentBody: { color: COLORS.textPrimary },
+  healingToggle: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: SPACING.sm, paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    borderWidth: 1, borderColor: COLORS.border,
+    marginBottom: SPACING.xs,
+  },
+  healingToggleActive: {
+    backgroundColor: COLORS.accentMuted, borderColor: COLORS.accentBorder,
+  },
+  healingToggleText: { color: COLORS.textMuted, fontSize: 11, fontWeight: '600' },
 });

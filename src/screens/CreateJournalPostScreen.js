@@ -18,8 +18,8 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, SHADOWS, commonStyles } from '../constants/theme';
 import { getDayNumber } from '../utils/healingStages';
-import { addPost } from '../database/socialDb';
-import { getLocalUser } from '../database/socialDb';
+import { addPost, getLocalUser } from '../database/socialDb';
+import { createJournalPost } from '../utils/journalPosts';
 
 const VISIBILITY_OPTIONS = [
   { value: 'public',  label: 'Public',  icon: 'globe',  desc: 'Anyone' },
@@ -89,6 +89,7 @@ export default function CreateJournalPostScreen({ route, navigation }) {
       const me = await getLocalUser();
       const userId = me?.id || `local-${Date.now()}`;
 
+      // Save to SQLite for social feed
       await addPost({
         userId,
         tattooId: tattoo.id,
@@ -98,6 +99,15 @@ export default function CreateJournalPostScreen({ route, navigation }) {
         visibility,
         styleTags: selectedStyles,
         artistTag: artistTag.trim() || null,
+      });
+      // Also save to AsyncStorage for TattooDetailScreen / PortfolioScreen
+      await createJournalPost({
+        tattoo_id: tattoo.id,
+        caption: caption.trim(),
+        photo_uris: photoUris,
+        day_number: dayNumber,
+        visibility,
+        artist_tag: artistTag.trim() || null,
       });
       navigation.goBack();
     } catch (e) {

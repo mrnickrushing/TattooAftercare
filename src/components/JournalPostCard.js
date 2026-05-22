@@ -1,17 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, Image, TouchableOpacity, Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-import { deleteJournalPost } from '../utils/journalPosts';
+import { deleteJournalPost, updateJournalPost } from '../utils/journalPosts';
 
 const VISIBILITY_ICONS = { public: 'globe', friends: 'users', private: 'lock' };
 const VISIBILITY_LABELS = { public: 'Public', friends: 'Friends', private: 'Only Me' };
+const VISIBILITY_CYCLE = { public: 'friends', friends: 'private', private: 'public' };
 
 export default function JournalPostCard({ post, onDeleted }) {
   const mainPhoto = post.photo_uris?.[0] || null;
+  const [visibility, setVisibility] = useState(post.visibility || 'friends');
 
   let timeAgo = '';
   try { timeAgo = formatDistanceToNow(parseISO(post.created_at), { addSuffix: true }); } catch {}
@@ -29,6 +31,12 @@ export default function JournalPostCard({ post, onDeleted }) {
     ]);
   };
 
+  const handleVisibilityChange = async () => {
+    const next = VISIBILITY_CYCLE[visibility] || 'friends';
+    await updateJournalPost(post.id, { visibility: next });
+    setVisibility(next);
+  };
+
   return (
     <View style={styles.card}>
       {mainPhoto && (
@@ -42,10 +50,14 @@ export default function JournalPostCard({ post, onDeleted }) {
             <Feather name="activity" size={11} color={COLORS.accent} />
             <Text style={styles.dayStampText}>Day {post.day_number}</Text>
           </View>
-          <View style={styles.visibilityBadge}>
-            <Feather name={VISIBILITY_ICONS[post.visibility] || 'users'} size={10} color={COLORS.textMuted} />
-            <Text style={styles.visibilityText}>{VISIBILITY_LABELS[post.visibility] || 'Friends'}</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.visibilityBadge}
+            onPress={handleVisibilityChange}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Feather name={VISIBILITY_ICONS[visibility] || 'users'} size={10} color={COLORS.accent} />
+            <Text style={styles.visibilityText}>{VISIBILITY_LABELS[visibility] || 'Friends'}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Caption */}
