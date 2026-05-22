@@ -9,6 +9,9 @@ import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, commonStyles } from '../consta
 import { useApp } from '../context/AppContext';
 import { addTattoo } from '../database/db';
 import { scheduleMorningReminder, scheduleEveningReminder } from '../utils/notifications';
+import { scheduleMilestoneReminders, scheduleAnniversaryNotifications } from '../utils/pushNotifications';
+import { checkAndAwardBadges } from '../utils/badgeEngine';
+import { getTattoos } from '../database/db';
 
 const STYLES = ['Traditional', 'Neo-Traditional', 'Realism', 'Watercolor', 'Blackwork', 'Geometric', 'Tribal', 'Japanese', 'New School', 'Fine Line', 'Other'];
 const PLACEMENTS = ['Forearm', 'Upper Arm', 'Bicep', 'Wrist', 'Hand', 'Chest', 'Ribs', 'Back', 'Shoulder', 'Neck', 'Leg', 'Thigh', 'Calf', 'Ankle', 'Foot', 'Hip', 'Other'];
@@ -54,6 +57,18 @@ export default function AddTattooScreen({ navigation }) {
       await refreshTattoos();
       await scheduleMorningReminder();
       await scheduleEveningReminder();
+
+      // Schedule per-tattoo milestone and anniversary notifications
+      const allTattoos = await getTattoos();
+      const newTattoo = allTattoos.find((t) => t.name === name.trim());
+      if (newTattoo) {
+        await scheduleMilestoneReminders(newTattoo);
+      }
+      await scheduleAnniversaryNotifications(allTattoos);
+
+      // Check and award badges
+      await checkAndAwardBadges('tattoo_added', { tattoos: allTattoos });
+
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', 'Could not save tattoo. Please try again.');

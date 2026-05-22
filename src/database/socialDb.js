@@ -47,21 +47,27 @@ async function getDB() {
 // ─── Badge constants ────────────────────────────────────────────────────────
 
 export const BADGE_TYPES = {
-  FRESH_INK:      'fresh_ink',
-  DEDICATED:      'dedicated',
-  IRON_SKIN:      'iron_skin',
-  DAY_HEALER_30:  '30_day_healer',
-  INK_COLLECTOR:  'ink_collector',
-  STYLE_PASSPORT: 'style_passport',
+  FRESH_INK:        'fresh_ink',
+  DEDICATED:        'dedicated',
+  IRON_SKIN:        'iron_skin',
+  DAY_HEALER_30:    '30_day_healer',
+  INK_COLLECTOR:    'ink_collector',
+  STYLE_PASSPORT:   'style_passport',
+  FIRST_POST:       'first_post',
+  SOCIAL_BUTTERFLY: 'social_butterfly',
+  TRENDSETTER:      'trendsetter',
 };
 
 export const BADGE_META = {
-  [BADGE_TYPES.FRESH_INK]:      { icon: '💉', label: 'Fresh Ink',      desc: 'Added your first tattoo' },
-  [BADGE_TYPES.DEDICATED]:      { icon: '🔥', label: 'Dedicated',      desc: '7-day care streak' },
-  [BADGE_TYPES.IRON_SKIN]:      { icon: '⚡', label: 'Iron Skin',      desc: '14-day care streak' },
-  [BADGE_TYPES.DAY_HEALER_30]:  { icon: '🏆', label: '30-Day Healer',  desc: 'Completed full healing cycle' },
-  [BADGE_TYPES.INK_COLLECTOR]:  { icon: '🎨', label: 'Ink Collector',  desc: 'Tracking 5+ tattoos' },
-  [BADGE_TYPES.STYLE_PASSPORT]: { icon: '✈️', label: 'Style Passport', desc: '3+ different styles' },
+  [BADGE_TYPES.FRESH_INK]:        { icon: '💉', label: 'Fresh Ink',        desc: 'Added your first tattoo' },
+  [BADGE_TYPES.DEDICATED]:        { icon: '🔥', label: 'Dedicated',        desc: '7-day care streak' },
+  [BADGE_TYPES.IRON_SKIN]:        { icon: '⚡', label: 'Iron Skin',        desc: '30-day log with zero bad days' },
+  [BADGE_TYPES.DAY_HEALER_30]:    { icon: '🏆', label: '30-Day Healer',    desc: 'Completed full healing cycle' },
+  [BADGE_TYPES.INK_COLLECTOR]:    { icon: '🎨', label: 'Ink Collector',    desc: 'Tracking 5+ tattoos' },
+  [BADGE_TYPES.STYLE_PASSPORT]:   { icon: '✈️', label: 'Style Passport',   desc: '3+ different styles' },
+  [BADGE_TYPES.FIRST_POST]:       { icon: '📸', label: 'First Post',       desc: 'Shared your first journal post' },
+  [BADGE_TYPES.SOCIAL_BUTTERFLY]: { icon: '🦋', label: 'Social Butterfly', desc: 'Reached 10 followers' },
+  [BADGE_TYPES.TRENDSETTER]:      { icon: '🌟', label: 'Trendsetter',      desc: 'Post reached 50 reactions' },
 };
 
 // ─── Schema init ─────────────────────────────────────────────────────────────
@@ -580,6 +586,15 @@ export async function getUncelebratedMilestones(tattooId) {
 export async function markMilestoneCelebrated(id) {
   const database = await getDB();
   await database.runAsync('UPDATE healing_milestones SET celebrated = 1 WHERE id = ?', [id]);
+}
+
+/** Get all milestones (celebrated + uncelebrated) for a tattoo */
+export async function getAllMilestonesForTattoo(tattooId) {
+  const database = await getDB();
+  return await database.getAllAsync(
+    'SELECT * FROM healing_milestones WHERE tattoo_id = ? ORDER BY day_number ASC',
+    [tattooId]
+  ) || [];
 }
 
 // ─── Badges ──────────────────────────────────────────────────────────────────

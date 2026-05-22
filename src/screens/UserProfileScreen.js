@@ -187,6 +187,32 @@ export default function UserProfileScreen({ route, navigation }) {
               <Feather name="edit-2" size={13} color={COLORS.accent} />
               <Text style={styles.editProfileBtnText}>Edit Profile</Text>
             </TouchableOpacity>
+            <View style={styles.profileQuickLinks}>
+              <TouchableOpacity
+                style={styles.quickLinkBtn}
+                onPress={() => navigation.navigate('BadgeCabinet', { userId: user?.id })}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.quickLinkEmoji}>🏅</Text>
+                <Text style={styles.quickLinkText}>Badges</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickLinkBtn}
+                onPress={() => navigation.navigate('FriendsLeaderboard')}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.quickLinkEmoji}>🏆</Text>
+                <Text style={styles.quickLinkText}>Leaderboard</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickLinkBtn}
+                onPress={() => navigation.navigate('NotificationSettings')}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.quickLinkEmoji}>🔔</Text>
+                <Text style={styles.quickLinkText}>Notifications</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )
       ) : (
@@ -302,6 +328,14 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.accentBorder, marginTop: SPACING.sm,
   },
   editProfileBtnText: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
+  profileQuickLinks: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
+  quickLinkBtn: {
+    flex: 1, alignItems: 'center', gap: 4, paddingVertical: SPACING.sm,
+    backgroundColor: COLORS.card, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.borderGold,
+  },
+  quickLinkEmoji: { fontSize: 18 },
+  quickLinkText: { color: COLORS.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
   followBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     marginTop: SPACING.sm, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xl,

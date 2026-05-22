@@ -10,7 +10,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, commonStyles } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 import { isHealed, getStage, calculateHealthStatus } from '../utils/healingStages';
-import { getCareLogForDate, addCareLog, updateCareLog, getCareLogsForTattoo, addPhoto } from '../database/db';
+import { getCareLogForDate, addCareLog, updateCareLog, getCareLogsForTattoo, addPhoto, getTattoos, getStreak } from '../database/db';
+import { checkAndAwardBadges } from '../utils/badgeEngine';
 
 const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -104,6 +105,20 @@ export default function CareLogScreen({ navigation }) {
       }
       await refreshStreak();
       await loadLog(selectedTattoo.id);
+
+      // Badge checks after saving care log
+      try {
+        const allTattoos = await getTattoos();
+        const allLogs = await getCareLogsForTattoo(selectedTattoo.id);
+        const currentStreak = await getStreak();
+        await checkAndAwardBadges('care_log_saved', {
+          tattoos: allTattoos,
+          streak: currentStreak || 0,
+          careLogs: allLogs,
+          tattooId: selectedTattoo.id,
+        });
+      } catch {}
+
       Alert.alert('Saved', healthStatus === 'doctor' ? '\u26a0\ufe0f Please consult a doctor about your symptoms.' : healthStatus === 'attention' ? 'Keep an eye on your tattoo.' : 'Keep up the great care!');
     } catch (e) {
       Alert.alert('Error', 'Could not save log.');
