@@ -25,6 +25,7 @@ import { getCareLogForDate, addCareLog, updateCareLog } from '../database/db';
 import TattooCard from '../components/TattooCard';
 import CareTaskItem from '../components/CareTaskItem';
 import StreakBadge from '../components/StreakBadge';
+import TattooBackground from '../components/TattooBackground';
 
 // Animated count-up number
 function AnimatedNumber({ value, style }) {
@@ -174,29 +175,24 @@ export default function HomeScreen({ navigation }) {
 
   if (loading) {
     return (
-      <LinearGradient colors={['#14120A', COLORS.background, COLORS.background]} style={[commonStyles.container, styles.center]}>
+      <TattooBackground style={[commonStyles.container, styles.center]}>
         <ActivityIndicator color={COLORS.accent} size="large" />
-      </LinearGradient>
+      </TattooBackground>
     );
   }
 
   return (
-    <LinearGradient
-      colors={['#14120A', COLORS.background, COLORS.background]}
-      locations={[0, 0.35, 1]}
-      style={commonStyles.container}
-    >
+    <TattooBackground style={commonStyles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* === HERO HEADER — radial gold glow behind logo === */}
+        {/* === HERO HEADER === */}
         <View style={styles.heroHeaderZone}>
-          {/* Radial glow: centred on the logo */}
           <View style={styles.heroGlowWrap} pointerEvents="none">
             <LinearGradient
-              colors={['rgba(200,169,81,0.10)', 'rgba(200,169,81,0.04)', 'transparent']}
+              colors={['rgba(200,169,81,0.12)', 'rgba(200,169,81,0.05)', 'transparent']}
               start={{ x: 0.5, y: 0.5 }}
               end={{ x: 1, y: 1 }}
               style={styles.heroGlow}
@@ -220,7 +216,7 @@ export default function HomeScreen({ navigation }) {
         {/* Decorative gold rule */}
         <View style={styles.headerDivider} />
 
-        {/* Date chip — pressed-metal style */}
+        {/* Date chip */}
         <View style={styles.dateChipRow}>
           <View style={styles.dateChipOuter}>
             <View style={styles.dateChip}>
@@ -229,7 +225,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Stats row — animated count-up numbers */}
+        {/* Stats row */}
         {tattoos.length > 0 && (
           <View style={styles.statsRow}>
             <View style={[styles.statCard, SHADOWS.card]}>
@@ -266,7 +262,6 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             {allDone ? (
-              // Celebration banner
               <LinearGradient
                 colors={[COLORS.successMuted, 'rgba(76,175,125,0.08)']}
                 style={styles.allDoneBanner}
@@ -359,7 +354,7 @@ export default function HomeScreen({ navigation }) {
       >
         <Feather name="plus" size={24} color={COLORS.textInverse} />
       </TouchableOpacity>
-    </LinearGradient>
+    </TattooBackground>
   );
 }
 
@@ -367,7 +362,6 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.xl, paddingBottom: 110 },
 
-  // Hero header zone with radial glow
   heroHeaderZone: { position: 'relative', marginBottom: SPACING.md },
   heroGlowWrap: {
     position: 'absolute',
@@ -392,7 +386,6 @@ const styles = StyleSheet.create({
 
   headerDivider: { height: 1, backgroundColor: 'rgba(200,169,81,0.18)', marginBottom: SPACING.lg },
 
-  // Pressed-metal date chip
   dateChipRow: { marginBottom: SPACING.lg },
   dateChipOuter: {
     alignSelf: 'flex-start',
@@ -410,7 +403,6 @@ const styles = StyleSheet.create({
   },
   dateChipText: { color: COLORS.textMuted, fontSize: 11, fontWeight: '600', letterSpacing: 1.0 },
 
-  // Stats
   statsRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.xl },
   statCard: {
     flex: 1, backgroundColor: COLORS.card, borderRadius: RADIUS.lg,
@@ -422,7 +414,6 @@ const styles = StyleSheet.create({
   statValue: { color: COLORS.textPrimary, fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
   statValueAccent: { color: COLORS.accent },
 
-  // Sections
   section: { marginBottom: SPACING.xl },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
   sectionHeaderText: { color: COLORS.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase' },
@@ -432,13 +423,11 @@ const styles = StyleSheet.create({
   allDoneBadge: { backgroundColor: COLORS.successMuted, borderRadius: RADIUS.full, paddingHorizontal: SPACING.sm, paddingVertical: 2, borderWidth: 1, borderColor: COLORS.success + '44' },
   allDoneBadgeText: { color: COLORS.success, fontSize: 9, fontWeight: '700', letterSpacing: 0.8 },
 
-  // Task card
   taskCard: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, paddingVertical: SPACING.xs, borderWidth: 1, borderColor: COLORS.borderGold, overflow: 'hidden' },
   taskDivider: { height: 1, backgroundColor: COLORS.border, marginHorizontal: SPACING.md },
   allDoneRow: { paddingVertical: SPACING.lg, alignItems: 'center' },
   allDoneText: { color: COLORS.success, fontSize: 14, fontWeight: '600', letterSpacing: 0.3 },
 
-  // All-done celebration banner
   allDoneBanner: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
     borderRadius: RADIUS.lg, padding: SPACING.lg,
@@ -448,11 +437,9 @@ const styles = StyleSheet.create({
   allDoneBannerTitle: { color: COLORS.success, fontSize: 15, fontWeight: '700' },
   allDoneBannerSub: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
 
-  // View all
   viewAllRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: SPACING.md, marginBottom: SPACING.sm },
   viewAllText: { color: COLORS.accentDim, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
 
-  // Empty state
   emptyState: { alignItems: 'center', paddingVertical: SPACING.xxxl, gap: SPACING.md },
   emptyLogoContainer: {
     width: 100, height: 100, borderRadius: 20, backgroundColor: '#F5F0E8',
