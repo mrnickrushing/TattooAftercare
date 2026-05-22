@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const BRI_LOGO = require('../../assets/blood-raven-logo.png');
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,6 +24,36 @@ import { getCareLogForDate, addCareLog, updateCareLog } from '../database/db';
 import TattooCard from '../components/TattooCard';
 import CareTaskItem from '../components/CareTaskItem';
 import StreakBadge from '../components/StreakBadge';
+
+// Animated wrapper for staggered card entrance
+function AnimatedCard({ children, index }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(14)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 340,
+        delay: index * 70,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        tension: 60,
+        friction: 10,
+        delay: index * 70,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      {children}
+    </Animated.View>
+  );
+}
 
 export default function HomeScreen({ navigation }) {
   const { tattoos, refreshTattoos, refreshStreak, streak } = useApp();
@@ -129,7 +161,6 @@ export default function HomeScreen({ navigation }) {
     setRefreshing(false);
   }, []);
 
-  // Build consolidated task list across all active tattoos
   const allTasks = [];
   for (const tattoo of activeTattoos) {
     const stage = getStage(tattoo.date_tattooed);
@@ -142,7 +173,6 @@ export default function HomeScreen({ navigation }) {
   const pendingCount = allTasks.filter(({ task, tattoo }) => !(taskStates[tattoo.id]?.[task.id] ?? false)).length;
   const allDone = allTasks.length > 0 && pendingCount === 0;
 
-  // Stats
   const firstTattooDate = tattoos.length > 0
     ? tattoos.reduce((earliest, t) => (!earliest || t.date_tattooed < earliest ? t.date_tattooed : earliest), null)
     : null;
@@ -150,14 +180,18 @@ export default function HomeScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={[commonStyles.container, styles.center]}>
+      <LinearGradient colors={['#14120A', COLORS.background, COLORS.background]} style={[commonStyles.container, styles.center]}>
         <ActivityIndicator color={COLORS.accent} size="large" />
-      </View>
+      </LinearGradient>
     );
   }
 
   return (
-    <View style={commonStyles.container}>
+    <LinearGradient
+      colors={['#14120A', COLORS.background, COLORS.background]}
+      locations={[0, 0.35, 1]}
+      style={commonStyles.container}
+    >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -194,13 +228,13 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.statLabel}>ACTIVE</Text>
               <Text style={styles.statValue}>{activeTattoos.length}</Text>
             </View>
-            <View style={[styles.statCard, styles.statCardStreak, SHADOWS.card]}>
-              <Text style={styles.statLabel}>STREAK</Text>
+            <View style={[styles.statCard, styles.statCardStreak, SHADOWS.goldStrong]}>
+              <Text style={[styles.statLabel, { color: COLORS.accentDim }]}>STREAK</Text>
               <Text style={[styles.statValue, styles.statValueAccent]}>{streak}</Text>
             </View>
             <View style={[styles.statCard, SHADOWS.card]}>
               <Text style={styles.statLabel}>DAYS IN</Text>
-              <Text style={styles.statValue}>{daysSinceFirst !== null ? daysSinceFirst : '—'}</Text>
+              <Text style={styles.statValue}>{daysSinceFirst !== null ? daysSinceFirst : '\u2014'}</Text>
             </View>
           </View>
         )}
@@ -210,6 +244,7 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionHeaderText}>TODAY'S CARE</Text>
+              <View style={styles.sectionRule} />
               {!allDone && pendingCount > 0 && (
                 <View style={styles.countBadge}>
                   <Text style={styles.countBadgeText}>{pendingCount}</Text>
@@ -217,7 +252,7 @@ export default function HomeScreen({ navigation }) {
               )}
               {allDone && (
                 <View style={styles.allDoneBadge}>
-                  <Text style={styles.allDoneBadgeText}>✓ DONE</Text>
+                  <Text style={styles.allDoneBadgeText}>\u2713 DONE</Text>
                 </View>
               )}
             </View>
@@ -252,6 +287,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionHeaderText}>HEALING</Text>
+            <View style={styles.sectionRule} />
             {activeTattoos.length > 0 && (
               <View style={styles.countBadge}>
                 <Text style={styles.countBadgeText}>{activeTattoos.length}</Text>
@@ -276,26 +312,39 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
           ) : (
-            activeTattoos.map((tattoo) => (
-              <TattooCard
-                key={tattoo.id}
-                tattoo={tattoo}
-                onPress={() => navigation.navigate('TattooDetail', { tattooId: tattoo.id })}
-              />
+            activeTattoos.map((tattoo, index) => (
+              <AnimatedCard key={tattoo.id} index={index}>
+                <TattooCard
+                  tattoo={tattoo}
+                  onPress={() => navigation.navigate('TattooDetail', { tattooId: tattoo.id })}
+                />
+              </AnimatedCard>
             ))
           )}
         </View>
+
+        {/* All Tattoos quick-link */}
+        {tattoos.length > 0 && (
+          <TouchableOpacity
+            style={styles.viewAllRow}
+            onPress={() => navigation.navigate('TattoosTab')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.viewAllText}>VIEW ALL TATTOOS</Text>
+            <Feather name="chevron-right" size={14} color={COLORS.accentDim} />
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* FAB */}
       <TouchableOpacity
-        style={styles.fab}
+        style={[commonStyles.fab]}
         onPress={() => navigation.navigate('AddTattoo')}
         activeOpacity={0.85}
       >
         <Feather name="plus" size={24} color={COLORS.textInverse} />
       </TouchableOpacity>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -321,32 +370,32 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   logoBadge: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.sm,
     backgroundColor: '#F5F0E8',
-    borderWidth: 1,
-    borderColor: COLORS.accentBorder,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
   },
   logoImage: {
-    width: 44,
-    height: 44,
+    width: 30,
+    height: 30,
   },
   headerTextBlock: {
-    gap: 2,
+    gap: 1,
   },
   logoLine1: {
     color: COLORS.accent,
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-    lineHeight: 17,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 2.5,
+    lineHeight: 14,
   },
   logoLine2: {
-    color: COLORS.textMuted,
+    color: COLORS.accentDim,
     fontSize: 9,
     fontWeight: '600',
     letterSpacing: 2,
@@ -354,7 +403,7 @@ const styles = StyleSheet.create({
   },
   headerDivider: {
     height: 1,
-    backgroundColor: COLORS.accentBorder,
+    backgroundColor: 'rgba(200,169,81,0.18)',
     marginBottom: SPACING.lg,
   },
   dateChipRow: {
@@ -367,7 +416,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderGold,
   },
   dateChipText: {
     color: COLORS.textMuted,
@@ -384,15 +433,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.card,
     borderRadius: RADIUS.lg,
-    paddingVertical: 16,
-    paddingHorizontal: SPACING.md,
+    padding: SPACING.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderGold,
   },
   statCardStreak: {
-    borderTopWidth: 2,
-    borderTopColor: COLORS.accentBorder,
+    backgroundColor: COLORS.accentMuted,
+    borderColor: COLORS.accentBorder,
   },
   statLabel: {
     color: COLORS.textMuted,
@@ -422,10 +470,15 @@ const styles = StyleSheet.create({
   },
   sectionHeaderText: {
     color: COLORS.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1.2,
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
+  },
+  sectionRule: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(200,169,81,0.15)',
   },
   countBadge: {
     backgroundColor: COLORS.accent,
@@ -460,7 +513,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     paddingVertical: SPACING.xs,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderGold,
     overflow: 'hidden',
   },
   taskDivider: {
@@ -478,6 +531,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.3,
   },
+  viewAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  viewAllText: {
+    color: COLORS.accentDim,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
   emptyState: {
     alignItems: 'center',
     paddingVertical: SPACING.xxxl,
@@ -494,6 +561,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
     marginBottom: SPACING.sm,
+    ...SHADOWS.gold,
   },
   emptyLogoImage: {
     width: 88,
@@ -529,17 +597,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.3,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: SPACING.xl,
-    right: SPACING.xl,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...SHADOWS.gold,
   },
 });
