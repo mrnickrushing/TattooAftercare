@@ -165,7 +165,7 @@ export default function HomeScreen({ navigation }) {
         {/* Header bar */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.logoLine1}>TATTOO</Text>
+            <Text style={styles.logoLine1}>BLOOD RAVEN INK</Text>
             <Text style={styles.logoLine2}>AFTERCARE</Text>
           </View>
           <StreakBadge streak={streak} />

@@ -76,7 +76,7 @@ const ShareableCard = React.forwardRef(function ShareableCard({ tattoo, finalPho
 
         {/* Watermark */}
         <View style={styles.watermark}>
-          <Text style={styles.watermarkText}>TATTOO AFTERCARE</Text>
+          <Text style={styles.watermarkText}>BLOOD RAVEN INK</Text>
         </View>
       </View>
     </View>
