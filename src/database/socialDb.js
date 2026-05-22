@@ -93,6 +93,7 @@ export async function initSocialDB() {
       caption TEXT,
       photo_uris TEXT,
       style_tags TEXT,
+      artist_tag TEXT,
       healing_day INTEGER,
       visibility TEXT DEFAULT 'friends',
       reaction_count INTEGER DEFAULT 0,
@@ -244,16 +245,21 @@ export async function saveLocalUser(user) {
 
 export async function savePostLocal(post) {
   const database = await getDB();
+  // Ensure artist_tag column exists (migration for existing DBs)
+  try {
+    await database.execAsync('ALTER TABLE posts ADD COLUMN artist_tag TEXT');
+  } catch { /* column already exists */ }
   await database.runAsync(
     `INSERT OR REPLACE INTO posts
-     (id, user_id, tattoo_id, caption, photo_uris, style_tags, healing_day,
+     (id, user_id, tattoo_id, caption, photo_uris, style_tags, artist_tag, healing_day,
       visibility, reaction_count, comment_count, is_synced, created_at, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       post.id, post.user_id, post.tattoo_id || null,
       post.caption || null,
       JSON.stringify(post.photo_uris || []),
       JSON.stringify(post.style_tags || []),
+      post.artist_tag || null,
       post.healing_day || null, post.visibility || 'friends',
       post.reaction_count || 0, post.comment_count || 0,
       post.is_synced ? 1 : 0,
@@ -282,11 +288,12 @@ export async function getLocalPostsByUser(userId, limit = 30) {
 }
 
 /** Phase-5 alias — adds a new post row */
-export async function addPost({ userId, tattooId, caption, photoUris, healingDay, visibility = 'friends' }) {
+export async function addPost({ userId, tattooId, caption, photoUris, healingDay, visibility = 'friends', styleTags, artistTag }) {
   const id = `post_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   await savePostLocal({
     id, user_id: userId, tattoo_id: tattooId,
     caption, photo_uris: photoUris, healing_day: healingDay, visibility,
+    style_tags: styleTags || [], artist_tag: artistTag || null,
   });
   return id;
 }
