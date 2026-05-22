@@ -9,16 +9,24 @@ export default function TattooCard({ tattoo, onPress }) {
   const stageKey = getStage(tattoo.date_tattooed);
   const stageInfo = getStageInfo(stageKey);
   const initial = tattoo.name ? tattoo.name.charAt(0).toUpperCase() : '?';
+  const dayNumber = getDayNumber(tattoo.date_tattooed);
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[
+        styles.card,
+        {
+          borderTopWidth: 3,
+          borderTopColor: stageInfo.color,
+          shadowColor: stageInfo.color,
+          shadowOpacity: 0.15,
+        },
+      ]}
       onPress={onPress}
       activeOpacity={0.85}
     >
-      {/* Left photo strip with stage color accent border */}
+      {/* Left photo strip */}
       <View style={styles.imageStrip}>
-        <View style={[styles.goldAccent, { backgroundColor: stageInfo.color }]} />
         {tattoo.thumbnail_uri ? (
           <Image
             source={{ uri: tattoo.thumbnail_uri }}
@@ -32,6 +40,10 @@ export default function TattooCard({ tattoo, onPress }) {
             <Text style={styles.initialText}>{initial}</Text>
           </View>
         )}
+        {/* Day X pill */}
+        <View style={styles.dayPill}>
+          <Text style={styles.dayPillText}>Day {dayNumber}</Text>
+        </View>
       </View>
 
       {/* Right content */}
@@ -72,25 +84,24 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: COLORS.border,
-    ...SHADOWS.card,
+    minHeight: 130,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 8,
   },
   imageStrip: {
-    width: 90,
-    flexDirection: 'row',
-  },
-  goldAccent: {
-    width: 3,
-    height: '100%',
+    width: 120,
+    position: 'relative',
   },
   image: {
-    flex: 1,
+    width: '100%',
     height: '100%',
-    minHeight: 110,
+    minHeight: 130,
   },
   imagePlaceholder: {
-    flex: 1,
+    width: '100%',
     height: '100%',
-    minHeight: 110,
+    minHeight: 130,
     backgroundColor: COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -110,6 +121,21 @@ const styles = StyleSheet.create({
     color: COLORS.accent,
     letterSpacing: -0.5,
   },
+  dayPill: {
+    position: 'absolute',
+    bottom: SPACING.sm,
+    right: SPACING.sm,
+    backgroundColor: 'rgba(10,10,10,0.75)',
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  dayPillText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
   content: {
     flex: 1,
     paddingHorizontal: SPACING.md,
@@ -121,8 +147,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   name: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     letterSpacing: -0.1,
     color: COLORS.textPrimary,
   },
