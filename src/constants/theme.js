@@ -1,22 +1,23 @@
 import { StyleSheet } from 'react-native';
 
 export const COLORS = {
-  background: '#0A0A0A',
-  surface: '#141414',
-  card: '#1C1C1C',
-  cardElevated: '#222222',
-  border: '#2A2A2A',
-  borderLight: '#333333',
+  background: '#0C0B08',
+  surface: '#141410',
+  card: '#1C1B16',
+  cardElevated: '#232218',
+  border: '#2A2820',
+  borderLight: '#333228',
+  borderGold: 'rgba(200,169,81,0.18)',
 
   accent: '#C8A951',
   accentDim: '#8B7535',
-  accentMuted: 'rgba(200,169,81,0.15)',
+  accentMuted: 'rgba(200,169,81,0.12)',
   accentBorder: 'rgba(200,169,81,0.3)',
 
-  textPrimary: '#F5F5F5',
-  textSecondary: '#A0A0A0',
-  textMuted: '#555555',
-  textInverse: '#0A0A0A',
+  textPrimary: '#F5F5F0',
+  textSecondary: '#A0A090',
+  textMuted: '#585548',
+  textInverse: '#0C0B08',
 
   success: '#4CAF7D',
   successMuted: 'rgba(76,175,125,0.15)',
@@ -34,10 +35,10 @@ export const COLORS = {
     healed: '#5292C0',
   },
 
-  tabBar: '#0A0A0A',
+  tabBar: 'transparent',
   tabBarActive: '#C8A951',
-  tabBarInactive: '#555555',
-  tabBarBorder: '#1C1C1C',
+  tabBarInactive: '#555548',
+  tabBarBorder: 'rgba(200,169,81,0.15)',
 };
 
 export const FONTS = {
@@ -51,22 +52,11 @@ export const FONTS = {
   body: { fontSize: 15, fontWeight: '400', lineHeight: 22, color: COLORS.textSecondary },
   bodySmall: { fontSize: 13, fontWeight: '400', lineHeight: 19, color: COLORS.textSecondary },
 
-  // Legacy compatibility
   sizes: {
-    xs: 11,
-    sm: 13,
-    md: 15,
-    lg: 18,
-    xl: 22,
-    xxl: 28,
-    xxxl: 34,
+    xs: 11, sm: 13, md: 15, lg: 18, xl: 22, xxl: 28, xxxl: 34,
   },
   weights: {
-    regular: '400',
-    medium: '500',
-    semibold: '600',
-    bold: '700',
-    heavy: '800',
+    regular: '400', medium: '500', semibold: '600', bold: '700', heavy: '800',
   },
 };
 
@@ -75,18 +65,32 @@ export const RADIUS = { sm: 6, md: 10, lg: 14, xl: 20, full: 999 };
 
 export const SHADOWS = {
   card: {
-    shadowColor: '#000',
+    shadowColor: '#C8A951',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
     elevation: 8,
+  },
+  cardDeep: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 20,
+    elevation: 12,
   },
   gold: {
     shadowColor: '#C8A951',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
     elevation: 6,
+  },
+  goldStrong: {
+    shadowColor: '#C8A951',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 10,
   },
 };
 
@@ -104,6 +108,8 @@ export const commonStyles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderGold,
   },
   surface: {
     backgroundColor: COLORS.surface,
@@ -197,8 +203,8 @@ export const commonStyles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    shadowOpacity: 0.5,
+    shadowRadius: 14,
     elevation: 10,
   },
 });
