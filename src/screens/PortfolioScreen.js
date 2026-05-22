@@ -12,6 +12,9 @@ import { useApp } from '../context/AppContext';
 import { isHealed } from '../utils/healingStages';
 import { getPhotosForTattoo } from '../database/db';
 import ShareableCard from '../components/ShareableCard';
+import JournalPostCard from '../components/JournalPostCard';
+import { getAllJournalPosts } from '../utils/journalPosts';
+import { Feather } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 const CELL_SIZE = (width - SPACING.lg * 2 - SPACING.sm) / 2;
@@ -23,14 +26,25 @@ export default function PortfolioScreen({ navigation }) {
   const [sharingTattoo, setSharingTattoo] = useState(null);
   const [sharePhoto, setSharePhoto] = useState(null);
   const shareCardRef = useRef(null);
+  const [journalPosts, setJournalPosts] = useState([]);
+  const [journalTab, setJournalTab] = useState('portfolio'); // 'portfolio' | 'journal'
 
-  useFocusEffect(useCallback(() => { refreshTattoos(); }, []));
+  const loadJournalPosts = useCallback(async () => {
+    const posts = await getAllJournalPosts();
+    setJournalPosts(posts);
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    refreshTattoos();
+    loadJournalPosts();
+  }, [loadJournalPosts]));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await refreshTattoos();
+    await loadJournalPosts();
     setRefreshing(false);
-  }, []);
+  }, [loadJournalPosts]);
 
   const healed = tattoos.filter((t) => isHealed(t.date_tattooed));
   const styles_set = [...new Set(healed.map((t) => t.style).filter(Boolean))];
@@ -71,7 +85,7 @@ export default function PortfolioScreen({ navigation }) {
       >
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Portfolio</Text>
-          <Text style={styles.headerSub}>Your completed tattoo collection.</Text>
+          <Text style={styles.headerSub}>Your tattoo collection &amp; journal.</Text>
         </View>
 
         {healed.length > 0 && (
@@ -80,45 +94,92 @@ export default function PortfolioScreen({ navigation }) {
             <View style={styles.statsDivider} />
             <StatPill label="Artists" value={totalArtists || '—'} />
             <View style={styles.statsDivider} />
-            <StatPill label="Styles" value={totalStyles || '—'} />
+            <StatPill label="Posts" value={journalPosts.length} />
           </View>
         )}
 
-        {filters.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterContent}>
-            {filters.map((f) => (
-              <TouchableOpacity
-                key={f}
-                style={[styles.filterChip, filter === f && styles.filterChipActive]}
-                onPress={() => setFilter(f)} activeOpacity={0.7}
-              >
-                <Text style={[styles.filterChipText, filter === f && styles.filterChipTextActive]}>{f}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-
-        {healed.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🖼️</Text>
-            <Text style={styles.emptyTitle}>Portfolio is empty</Text>
-            <Text style={styles.emptySubtitle}>
-              Your healed tattoos will appear here.{'\n'}Complete your healing journey to build your collection.
+        {/* Tab switcher */}
+        <View style={styles.tabRow}>
+          <TouchableOpacity
+            style={[styles.tabBtn, journalTab === 'portfolio' && styles.tabBtnActive]}
+            onPress={() => setJournalTab('portfolio')}
+            activeOpacity={0.75}
+          >
+            <Feather name="image" size={14} color={journalTab === 'portfolio' ? COLORS.accent : COLORS.textMuted} />
+            <Text style={[styles.tabBtnText, journalTab === 'portfolio' && styles.tabBtnTextActive]}>Portfolio</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabBtn, journalTab === 'journal' && styles.tabBtnActive]}
+            onPress={() => setJournalTab('journal')}
+            activeOpacity={0.75}
+          >
+            <Feather name="edit-3" size={14} color={journalTab === 'journal' ? COLORS.accent : COLORS.textMuted} />
+            <Text style={[styles.tabBtnText, journalTab === 'journal' && styles.tabBtnTextActive]}>
+              Ink Journal {journalPosts.length > 0 ? `(${journalPosts.length})` : ''}
             </Text>
-          </View>
-        ) : filtered.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptySubtitle}>No tattoos in this style.</Text>
-          </View>
+          </TouchableOpacity>
+        </View>
+
+        {journalTab === 'portfolio' ? (
+          <>
+            {filters.length > 1 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterContent}>
+                {filters.map((f) => (
+                  <TouchableOpacity
+                    key={f}
+                    style={[styles.filterChip, filter === f && styles.filterChipActive]}
+                    onPress={() => setFilter(f)} activeOpacity={0.7}
+                  >
+                    <Text style={[styles.filterChipText, filter === f && styles.filterChipTextActive]}>{f}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            {healed.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>🖼️</Text>
+                <Text style={styles.emptyTitle}>Portfolio is empty</Text>
+                <Text style={styles.emptySubtitle}>
+                  Your healed tattoos will appear here.{'\n'}Complete your healing journey to build your collection.
+                </Text>
+              </View>
+            ) : filtered.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptySubtitle}>No tattoos in this style.</Text>
+              </View>
+            ) : (
+              <View style={styles.grid}>
+                {filtered.map((tattoo) => (
+                  <GridCell
+                    key={tattoo.id} tattoo={tattoo}
+                    onPress={() => navigation.navigate('TattooDetail', { tattooId: tattoo.id })}
+                    onLongPress={() => handleLongPress(tattoo)}
+                  />
+                ))}
+              </View>
+            )}
+          </>
         ) : (
-          <View style={styles.grid}>
-            {filtered.map((tattoo) => (
-              <GridCell
-                key={tattoo.id} tattoo={tattoo}
-                onPress={() => navigation.navigate('TattooDetail', { tattooId: tattoo.id })}
-                onLongPress={() => handleLongPress(tattoo)}
-              />
-            ))}
+          /* Ink Journal tab */
+          <View style={styles.journalSection}>
+            {journalPosts.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>✏️</Text>
+                <Text style={styles.emptyTitle}>No journal posts yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  Open any tattoo and tap "Add Journal Post" to share your healing story.
+                </Text>
+              </View>
+            ) : (
+              journalPosts.map((post) => (
+                <JournalPostCard
+                  key={post.id}
+                  post={post}
+                  onDeleted={(id) => setJournalPosts((prev) => prev.filter((p) => p.id !== id))}
+                />
+              ))
+            )}
           </View>
         )}
       </ScrollView>
@@ -197,4 +258,19 @@ const styles = StyleSheet.create({
   emptyTitle: { ...FONTS.headingLarge, textAlign: 'center' },
   emptySubtitle: { ...FONTS.body, textAlign: 'center' },
   offScreen: { position: 'absolute', top: -9999, left: -9999 },
+  tabRow: {
+    flexDirection: 'row', marginHorizontal: SPACING.lg, marginBottom: SPACING.lg,
+    backgroundColor: COLORS.card, borderRadius: RADIUS.lg,
+    borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
+  },
+  tabBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: SPACING.sm, paddingVertical: SPACING.md,
+  },
+  tabBtnActive: {
+    backgroundColor: COLORS.accentMuted, borderBottomWidth: 2, borderBottomColor: COLORS.accent,
+  },
+  tabBtnText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
+  tabBtnTextActive: { color: COLORS.accent },
+  journalSection: { paddingHorizontal: SPACING.lg },
 });

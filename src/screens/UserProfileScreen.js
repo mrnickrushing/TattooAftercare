@@ -21,6 +21,7 @@ import {
   getLocalPostsByUser,
   getUserBadges, BADGE_META,
   followUser, unfollowUser, isFollowing,
+  createNotification,
 } from '../database/socialDb';
 
 export default function UserProfileScreen({ route, navigation }) {
@@ -91,6 +92,13 @@ export default function UserProfileScreen({ route, navigation }) {
       await followUser(me.id, viewingUserId);
       setFollowing(true);
       setUser((prev) => prev ? { ...prev, follower_count: (prev.follower_count || 0) + 1 } : prev);
+      // Trigger follow notification for the followed user
+      await createNotification({
+        userId: viewingUserId,
+        type: 'follow',
+        actorId: me.id,
+        body: `@${me.username || 'Someone'} started following you.`,
+      });
     }
   };
 

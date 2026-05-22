@@ -57,6 +57,7 @@ function HomeStack() {
       <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo Detail' }} />
       <Stack.Screen name="AddTattoo" component={AddTattooScreen} options={{ title: 'Add Tattoo', presentation: 'modal' }} />
+      <Stack.Screen name="CareLog" component={CareLogScreen} options={{ title: 'Care Log' }} />
       <Stack.Screen name="CreateJournalPost" component={CreateJournalPostScreen} options={{ title: 'New Journal Post', presentation: 'modal' }} />
     </Stack.Navigator>
   );
@@ -68,6 +69,7 @@ function MyTattoosStack() {
       <Stack.Screen name="MyTattoos" component={MyTattoosScreen} options={{ title: 'My Tattoos' }} />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo Detail' }} />
       <Stack.Screen name="AddTattoo" component={AddTattooScreen} options={{ title: 'Add Tattoo', presentation: 'modal' }} />
+      <Stack.Screen name="CareLog" component={CareLogScreen} options={{ title: 'Care Log' }} />
       <Stack.Screen name="CreateJournalPost" component={CreateJournalPostScreen} options={{ title: 'New Journal Post', presentation: 'modal' }} />
     </Stack.Navigator>
   );
@@ -99,6 +101,7 @@ function PortfolioStack() {
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="Portfolio" component={PortfolioScreen} options={{ title: 'Portfolio' }} />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo Detail' }} />
+      <Stack.Screen name="CareLog" component={CareLogScreen} options={{ title: 'Care Log' }} />
       <Stack.Screen name="CreateJournalPost" component={CreateJournalPostScreen} options={{ title: 'New Journal Post', presentation: 'modal' }} />
     </Stack.Navigator>
   );
