@@ -204,6 +204,9 @@ export const commonStyles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
+    // bottom is intentionally NOT set here — each screen adds
+    // insets.bottom + SPACING.xl so the FAB clears the tab bar.
+    // If you use commonStyles.fab directly, override bottom yourself.
     bottom: SPACING.xl,
     right: SPACING.xl,
     width: 56,
