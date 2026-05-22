@@ -1,23 +1,34 @@
 import { StyleSheet } from 'react-native';
 
+// Traditional tattoo flash aesthetic:
+// Deep aged parchment base, warm burgundy-brown surfaces, antique gold accents
 export const COLORS = {
-  background: '#0C0B08',
-  surface: '#141410',
-  card: '#1C1B16',
-  cardElevated: '#232218',
-  border: '#2A2820',
-  borderLight: '#333228',
-  borderGold: 'rgba(200,169,81,0.18)',
+  // Warm dark parchment backgrounds (replaced pure black)
+  background: '#1A0F0A',        // deep warm espresso — aged leather
+  surface: '#221510',           // dark burgundy-brown
+  card: '#2A1A12',              // warm dark sienna
+  cardElevated: '#321F16',      // slightly lifted warm brown
+  border: '#3D2318',            // muted rust border
+  borderLight: '#4A2B1E',       // lighter warm border
+  borderGold: 'rgba(200,169,81,0.22)',
 
+  // Antique gold accent — unchanged, fits perfectly
   accent: '#C8A951',
   accentDim: '#8B7535',
   accentMuted: 'rgba(200,169,81,0.12)',
   accentBorder: 'rgba(200,169,81,0.3)',
 
-  textPrimary: '#F5F5F0',
-  textSecondary: '#A0A090',
-  textMuted: '#585548',
-  textInverse: '#0C0B08',
+  // Traditional tattoo flash palette extras
+  flashRed: '#8B1A1A',          // traditional deep red — used in pattern
+  flashRedBright: '#C0392B',    // brighter red for accents
+  flashNavy: '#1A2744',         // traditional navy
+  flashGreen: '#1A4A2A',        // deep traditional green
+  parchment: '#F0E6D0',         // warm parchment for text-on-light
+
+  textPrimary: '#F5F0E8',       // warm off-white (unchanged)
+  textSecondary: '#B0A090',     // warm muted
+  textMuted: '#6B5A4A',         // warm dark muted
+  textInverse: '#1A0F0A',
 
   success: '#4CAF7D',
   successMuted: 'rgba(76,175,125,0.15)',
@@ -37,8 +48,8 @@ export const COLORS = {
 
   tabBar: 'transparent',
   tabBarActive: '#C8A951',
-  tabBarInactive: '#555548',
-  tabBarBorder: 'rgba(200,169,81,0.15)',
+  tabBarInactive: '#6B5A4A',
+  tabBarBorder: 'rgba(200,169,81,0.18)',
 };
 
 export const FONTS = {
