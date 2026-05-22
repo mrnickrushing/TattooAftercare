@@ -483,6 +483,22 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xxxl,
     gap: SPACING.md,
   },
+  emptyLogoContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 20,
+    backgroundColor: '#F5F0E8',
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: SPACING.sm,
+  },
+  emptyLogoImage: {
+    width: 88,
+    height: 88,
+  },
   emptyIcon: {
     fontSize: 48,
     marginBottom: SPACING.sm,
@@ -490,7 +506,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: COLORS.textPrimary,
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: -0.2,
   },
   emptySubtitle: {

@@ -85,7 +85,7 @@ export default function HealingProgressBar({ dateTattooed, style }) {
                     shadowRadius: 4,
                     elevation: 4,
                   },
-                  isPast && !isActive && { backgroundColor: COLORS.accentDim },
+                  isPast && !isActive && { backgroundColor: COLORS.accentDim, width: 8, height: 8 },
                   !isActive && !isPast && { backgroundColor: COLORS.border },
                 ]}
               />
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
   track: {
-    height: 4,
+    height: 6,
     backgroundColor: COLORS.border,
     borderRadius: RADIUS.full,
     overflow: 'hidden',
