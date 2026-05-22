@@ -32,6 +32,7 @@ export default function CareLogScreen({ navigation }) {
   const [existingLogId, setExistingLogId] = useState(null);
   const [weekLogs, setWeekLogs] = useState({});
   const [saving, setSaving] = useState(false);
+  const [notesFocused, setNotesFocused] = useState(false);
 
   const selectedTattoo = activeTattoos.find((t) => t.id === selectedId) || activeTattoos[0];
 
@@ -103,7 +104,7 @@ export default function CareLogScreen({ navigation }) {
       }
       await refreshStreak();
       await loadLog(selectedTattoo.id);
-      Alert.alert('Saved', healthStatus === 'doctor' ? '⚠️ Please consult a doctor about your symptoms.' : healthStatus === 'attention' ? 'Keep an eye on your tattoo.' : 'Keep up the great care!');
+      Alert.alert('Saved', healthStatus === 'doctor' ? '\u26a0\ufe0f Please consult a doctor about your symptoms.' : healthStatus === 'attention' ? 'Keep an eye on your tattoo.' : 'Keep up the great care!');
     } catch (e) {
       Alert.alert('Error', 'Could not save log.');
     } finally {
@@ -115,15 +116,15 @@ export default function CareLogScreen({ navigation }) {
 
   const statusConfig = {
     good: { color: COLORS.success, bg: COLORS.successMuted, border: COLORS.success + '44', icon: 'check-circle', label: 'Healing Well' },
-    attention: { color: COLORS.warning, bg: COLORS.warningMuted, border: COLORS.warning + '44', icon: 'alert-triangle', label: 'Needs Attention — monitor closely' },
-    doctor: { color: COLORS.danger, bg: COLORS.dangerMuted, border: COLORS.danger + '44', icon: 'alert-octagon', label: 'See a Doctor — signs of infection' },
+    attention: { color: COLORS.warning, bg: COLORS.warningMuted, border: COLORS.warning + '44', icon: 'alert-triangle', label: 'Needs Attention \u2014 monitor closely' },
+    doctor: { color: COLORS.danger, bg: COLORS.dangerMuted, border: COLORS.danger + '44', icon: 'alert-octagon', label: 'See a Doctor \u2014 signs of infection' },
   };
   const sc = statusConfig[healthStatus];
 
   if (activeTattoos.length === 0) {
     return (
       <View style={[commonStyles.container, styles.center]}>
-        <Text style={styles.emptyIcon}>📋</Text>
+        <Text style={styles.emptyIcon}>\ud83d\udccb</Text>
         <Text style={styles.emptyTitle}>No active tattoos</Text>
         <Text style={styles.emptySubtitle}>Add a tattoo to start logging your care.</Text>
         <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate('Home', { screen: 'AddTattoo' })}>
@@ -176,6 +177,14 @@ export default function CareLogScreen({ navigation }) {
                   isTd && styles.weekDotToday,
                   hasEntry && { backgroundColor: COLORS.accent },
                   !hasEntry && isPast && { backgroundColor: COLORS.danger + '44' },
+                  // Glow on today dot
+                  isTd && {
+                    shadowColor: COLORS.accent,
+                    shadowOpacity: 0.55,
+                    shadowRadius: 5,
+                    shadowOffset: { width: 0, height: 0 },
+                    elevation: 4,
+                  },
                 ]}>
                   {hasEntry && <Feather name="check" size={8} color={COLORS.textInverse} />}
                 </View>
@@ -214,10 +223,10 @@ export default function CareLogScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Warning signs */}
+        {/* Warning signs - danger tinted background */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: COLORS.danger + 'BB' }]}>⚠ WARNING SIGNS</Text>
-          <View style={[styles.warningCard]}>
+          <View style={styles.warningCard}>
             <CheckboxItem label="Discharge / Oozing" checked={log.discharge} onPress={() => toggle('discharge')} danger />
             <View style={styles.checkDivider} />
             <CheckboxItem label="Fever" checked={log.fever} onPress={() => toggle('fever')} danger />
@@ -239,18 +248,25 @@ export default function CareLogScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Notes */}
+        {/* Notes - animated border on focus */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>NOTES</Text>
           <TextInput
-            style={styles.notesInput} value={notes} onChangeText={setNotes}
-            placeholder="How's it feeling? Any observations..." placeholderTextColor={COLORS.textMuted}
+            style={[styles.notesInput, notesFocused && styles.notesInputFocused]}
+            value={notes} onChangeText={setNotes}
+            placeholder="How's it feeling? Any observations..."
+            placeholderTextColor={COLORS.textMuted}
             multiline numberOfLines={4} textAlignVertical="top"
+            onFocus={() => setNotesFocused(true)}
+            onBlur={() => setNotesFocused(false)}
           />
         </View>
 
         {/* Save */}
-        <TouchableOpacity style={[styles.saveButton, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[styles.saveButton, saving && { opacity: 0.6 }]}
+          onPress={handleSave} disabled={saving} activeOpacity={0.85}
+        >
           <Text style={styles.saveButtonText}>{saving ? 'Saving...' : existingLogId ? 'Update Log' : 'Save Log'}</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -308,7 +324,11 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.xl },
   sectionLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: SPACING.sm },
   toggleRow: { flexDirection: 'row', gap: SPACING.sm },
-  toggleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, backgroundColor: COLORS.card, borderRadius: RADIUS.lg, paddingVertical: SPACING.lg, borderWidth: 1, borderColor: COLORS.border },
+  toggleBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
+    backgroundColor: COLORS.card, borderRadius: RADIUS.lg, paddingVertical: SPACING.lg,
+    borderWidth: 1, borderColor: COLORS.borderGold,
+  },
   toggleBtnActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent, ...SHADOWS.gold },
   toggleBtnText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
   toggleBtnTextActive: { color: COLORS.textInverse },
@@ -316,14 +336,35 @@ const styles = StyleSheet.create({
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, width: '48%' },
   checkbox: { width: 20, height: 20, borderRadius: RADIUS.sm, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   checkLabel: { color: COLORS.textMuted, fontSize: 13, fontWeight: '500', flex: 1 },
-  warningCard: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.danger + '33', overflow: 'hidden', paddingHorizontal: SPACING.md },
+  // Warning card — subtle danger tint on background
+  warningCard: {
+    backgroundColor: 'rgba(224,82,82,0.06)',
+    borderRadius: RADIUS.lg, borderWidth: 1,
+    borderColor: COLORS.danger + '33',
+    overflow: 'hidden', paddingHorizontal: SPACING.md,
+  },
   checkDivider: { height: 1, backgroundColor: COLORS.border },
   photoRow: { borderRadius: RADIUS.lg, overflow: 'hidden' },
   photoThumb: { width: '100%', height: 140, borderRadius: RADIUS.lg },
-  photoPlaceholder: { height: 80, backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: SPACING.sm },
+  photoPlaceholder: {
+    height: 80, backgroundColor: COLORS.card, borderRadius: RADIUS.lg,
+    borderWidth: 1, borderColor: COLORS.borderGold, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: SPACING.sm,
+  },
   photoPlaceholderText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '500' },
-  notesInput: { backgroundColor: COLORS.surface, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, color: COLORS.textPrimary, fontSize: 15, padding: SPACING.md, minHeight: 80 },
-  saveButton: { marginHorizontal: SPACING.lg, backgroundColor: COLORS.accent, borderRadius: RADIUS.md, paddingVertical: SPACING.lg, alignItems: 'center', ...SHADOWS.gold },
+  notesInput: {
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.border,
+    color: COLORS.textPrimary, fontSize: 15, padding: SPACING.md, minHeight: 80,
+  },
+  notesInputFocused: {
+    borderColor: COLORS.accentBorder,
+  },
+  saveButton: {
+    marginHorizontal: SPACING.lg, backgroundColor: COLORS.accent,
+    borderRadius: RADIUS.md, paddingVertical: SPACING.lg,
+    alignItems: 'center', ...SHADOWS.gold,
+  },
   saveButtonText: { color: COLORS.textInverse, fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
   emptyIcon: { fontSize: 48, marginBottom: SPACING.md },
   emptyTitle: { ...FONTS.headingLarge, textAlign: 'center', marginBottom: SPACING.sm },

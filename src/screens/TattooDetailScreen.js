@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, Alert, Dimensions, Share,
+  Image, Alert, Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { format, parseISO } from 'date-fns';
@@ -104,20 +105,50 @@ export default function TattooDetailScreen({ route, navigation }) {
           {tattoo.thumbnail_uri ? (
             <Image source={{ uri: tattoo.thumbnail_uri }} style={styles.heroImage} />
           ) : (
-            <View style={styles.heroPlaceholder}>
+            // Metallic shimmer placeholder
+            <LinearGradient
+              colors={['#1A1917', '#2A2822', '#1A1917']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.heroPlaceholder}
+            >
               <Text style={styles.heroInitial}>{tattoo.name?.[0]?.toUpperCase() || '?'}</Text>
-            </View>
+            </LinearGradient>
           )}
-          <View style={styles.heroOverlay}>
+
+          {/* Gradient overlay — transparent top → dark bottom */}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.85)']}
+            locations={[0.45, 1]}
+            style={styles.heroGradientOverlay}
+          >
             <Text style={styles.heroName}>{tattoo.name}</Text>
             {tattoo.placement && <Text style={styles.heroPlacement}>{tattoo.placement}</Text>}
-          </View>
-          <View style={[styles.stageBadge, { backgroundColor: stageInfo.color + '33', borderColor: stageInfo.color + '66' }]}>
+          </LinearGradient>
+
+          {/* Stage badge with glow */}
+          <View style={[
+            styles.stageBadge,
+            {
+              backgroundColor: stageInfo.color + '33',
+              borderColor: stageInfo.color + '66',
+              shadowColor: stageInfo.color,
+              shadowOpacity: 0.5,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 0 },
+              elevation: 4,
+            },
+          ]}>
             <Text style={[styles.stageBadgeText, { color: stageInfo.color }]}>{stageInfo.name.toUpperCase()}</Text>
           </View>
+
+          {/* Menu button */}
+          <TouchableOpacity style={styles.menuBtn} onPress={handleMenuPress} activeOpacity={0.75}>
+            <Feather name="more-vertical" size={20} color={COLORS.textPrimary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Info grid */}
+        {/* Info grid — borderGold cells */}
         <View style={styles.infoGrid}>
           {tattoo.artist_name && <InfoCell label="Artist" value={tattoo.artist_name} />}
           {tattoo.shop_name && <InfoCell label="Shop" value={tattoo.shop_name} />}
@@ -167,7 +198,7 @@ export default function TattooDetailScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Photo timeline */}
+        {/* Photo timeline — gold-bordered thumbs */}
         {photos.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>PHOTO TIMELINE</Text>
@@ -265,15 +296,33 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 120 },
   hero: { height: HERO_HEIGHT, position: 'relative', overflow: 'hidden', marginBottom: SPACING.lg },
   heroImage: { width: '100%', height: '100%' },
-  heroPlaceholder: { width: '100%', height: '100%', backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' },
+  heroPlaceholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   heroInitial: { color: COLORS.accent, fontSize: 72, fontWeight: '700' },
-  heroOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)', padding: SPACING.lg },
+  // Full-area gradient overlay sitting over image
+  heroGradientOverlay: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg, paddingTop: SPACING.xxl,
+  },
   heroName: { color: COLORS.textPrimary, fontSize: 24, fontWeight: '700', letterSpacing: -0.3 },
   heroPlacement: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
-  stageBadge: { position: 'absolute', top: SPACING.md, right: SPACING.md, paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.full, borderWidth: 1 },
+  stageBadge: {
+    position: 'absolute', top: SPACING.md, right: SPACING.md,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: RADIUS.full, borderWidth: 1,
+  },
   stageBadgeText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.8 },
+  menuBtn: {
+    position: 'absolute', top: SPACING.md, left: SPACING.md,
+    width: 32, height: 32, borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: SPACING.lg, gap: SPACING.sm, marginBottom: SPACING.md },
-  infoCell: { backgroundColor: COLORS.card, borderRadius: RADIUS.md, padding: SPACING.md, minWidth: '45%', flex: 1, borderWidth: 1, borderColor: COLORS.border },
+  infoCell: {
+    backgroundColor: COLORS.card, borderRadius: RADIUS.md,
+    padding: SPACING.md, minWidth: '45%', flex: 1,
+    borderWidth: 1, borderColor: COLORS.borderGold,
+  },
   infoCellLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 },
   infoCellValue: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '600' },
   instagramRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg },
@@ -281,27 +330,46 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.xl },
   sectionLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: SPACING.sm },
   ratingsRow: { flexDirection: 'row', gap: SPACING.sm },
-  ratingBox: { flex: 1, backgroundColor: COLORS.card, borderRadius: RADIUS.md, padding: SPACING.md, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  ratingBox: {
+    flex: 1, backgroundColor: COLORS.card, borderRadius: RADIUS.md,
+    padding: SPACING.md, alignItems: 'center',
+    borderWidth: 1, borderColor: COLORS.borderGold,
+  },
   ratingLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 },
   ratingValue: { color: COLORS.textPrimary, fontSize: 22, fontWeight: '700' },
   ratingMax: { color: COLORS.textMuted, fontSize: 14, fontWeight: '400' },
   photoTimeline: { gap: SPACING.sm, paddingRight: SPACING.lg },
   photoThumbWrap: { alignItems: 'center', gap: 4 },
-  photoThumb: { width: 72, height: 72, borderRadius: RADIUS.md },
+  photoThumb: {
+    width: 72, height: 72, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.borderGold,
+    ...SHADOWS.card,
+  },
   photoThumbDay: { color: COLORS.textMuted, fontSize: 10, fontWeight: '600' },
-  addPhotoBtn: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginHorizontal: SPACING.lg, marginBottom: SPACING.xl, paddingVertical: SPACING.md, paddingHorizontal: SPACING.lg, backgroundColor: COLORS.card, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.accentBorder, alignSelf: 'flex-start' },
+  addPhotoBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    marginHorizontal: SPACING.lg, marginBottom: SPACING.xl,
+    paddingVertical: SPACING.md, paddingHorizontal: SPACING.lg,
+    backgroundColor: COLORS.card, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.accentBorder, alignSelf: 'flex-start',
+  },
   addPhotoBtnText: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
-  logsCard: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
+  logsCard: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.borderGold, overflow: 'hidden' },
   logRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm },
   logDivider: { height: 1, backgroundColor: COLORS.border },
   logDot: { width: 7, height: 7, borderRadius: RADIUS.full },
   logDate: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '600', width: 50 },
   logIcons: { flexDirection: 'row', gap: SPACING.xs },
   logNote: { color: COLORS.textMuted, fontSize: 12, flex: 1 },
-  notesCard: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border, padding: SPACING.lg },
+  notesCard: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.borderGold, padding: SPACING.lg },
   notesText: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 21 },
   actionsRow: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg },
-  actionButton: { backgroundColor: COLORS.accent, borderRadius: RADIUS.md, paddingVertical: SPACING.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, ...SHADOWS.gold },
+  actionButton: {
+    backgroundColor: COLORS.accent, borderRadius: RADIUS.md,
+    paddingVertical: SPACING.lg, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
+    ...SHADOWS.gold,
+  },
   actionButtonText: { color: COLORS.textInverse, fontSize: 15, fontWeight: '700' },
   offScreen: { position: 'absolute', top: -9999, left: -9999 },
 });
