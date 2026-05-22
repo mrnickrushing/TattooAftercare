@@ -13,9 +13,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, commonStyles } from '../constants/theme';
 import { getTattooById, getCareLogsForTattoo, getPhotosForTattoo, deleteTattoo, addPhoto, updateTattoo } from '../database/db';
 import { getStage, getStageInfo, isHealed, getDayNumber } from '../utils/healingStages';
+import { getJournalPostsForTattoo } from '../utils/journalPosts';
 import HealingProgressBar from '../components/HealingProgressBar';
 import PhotoComparisonSlider from '../components/PhotoComparisonSlider';
 import ShareableCard from '../components/ShareableCard';
+import JournalPostCard from '../components/JournalPostCard';
 
 const { width } = Dimensions.get('window');
 const HERO_HEIGHT = 240;
@@ -25,6 +27,7 @@ export default function TattooDetailScreen({ route, navigation }) {
   const [tattoo, setTattoo] = useState(null);
   const [logs, setLogs] = useState([]);
   const [photos, setPhotos] = useState([]);
+  const [journalPosts, setJournalPosts] = useState([]);
   const [sharing, setSharing] = useState(false);
   const shareCardRef = useRef(null);
 
@@ -36,6 +39,8 @@ export default function TattooDetailScreen({ route, navigation }) {
     setLogs(l.slice(0, 10));
     const p = await getPhotosForTattoo(tattooId);
     setPhotos(p);
+    const jp = await getJournalPostsForTattoo(tattooId);
+    setJournalPosts(jp);
   }, [tattooId]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
@@ -86,6 +91,10 @@ export default function TattooDetailScreen({ route, navigation }) {
     ]);
   };
 
+  const handleCreatePost = () => {
+    navigation.navigate('CreateJournalPost', { tattoo });
+  };
+
   if (!tattoo) return <View style={commonStyles.container} />;
 
   const stageKey = getStage(tattoo.date_tattooed);
@@ -105,7 +114,6 @@ export default function TattooDetailScreen({ route, navigation }) {
           {tattoo.thumbnail_uri ? (
             <Image source={{ uri: tattoo.thumbnail_uri }} style={styles.heroImage} />
           ) : (
-            // Metallic shimmer placeholder
             <LinearGradient
               colors={['#1A1917', '#2A2822', '#1A1917']}
               start={{ x: 0, y: 0 }}
@@ -115,8 +123,6 @@ export default function TattooDetailScreen({ route, navigation }) {
               <Text style={styles.heroInitial}>{tattoo.name?.[0]?.toUpperCase() || '?'}</Text>
             </LinearGradient>
           )}
-
-          {/* Gradient overlay — transparent top → dark bottom */}
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.85)']}
             locations={[0.45, 1]}
@@ -125,8 +131,6 @@ export default function TattooDetailScreen({ route, navigation }) {
             <Text style={styles.heroName}>{tattoo.name}</Text>
             {tattoo.placement && <Text style={styles.heroPlacement}>{tattoo.placement}</Text>}
           </LinearGradient>
-
-          {/* Stage badge with glow */}
           <View style={[
             styles.stageBadge,
             {
@@ -141,14 +145,12 @@ export default function TattooDetailScreen({ route, navigation }) {
           ]}>
             <Text style={[styles.stageBadgeText, { color: stageInfo.color }]}>{stageInfo.name.toUpperCase()}</Text>
           </View>
-
-          {/* Menu button */}
           <TouchableOpacity style={styles.menuBtn} onPress={handleMenuPress} activeOpacity={0.75}>
             <Feather name="more-vertical" size={20} color={COLORS.textPrimary} />
           </TouchableOpacity>
         </View>
 
-        {/* Info grid — borderGold cells */}
+        {/* Info grid */}
         <View style={styles.infoGrid}>
           {tattoo.artist_name && <InfoCell label="Artist" value={tattoo.artist_name} />}
           {tattoo.shop_name && <InfoCell label="Shop" value={tattoo.shop_name} />}
@@ -198,7 +200,7 @@ export default function TattooDetailScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Photo timeline — gold-bordered thumbs */}
+        {/* Photo timeline */}
         {photos.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>PHOTO TIMELINE</Text>
@@ -256,8 +258,28 @@ export default function TattooDetailScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* Journal Posts */}
+        {journalPosts.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>INK JOURNAL</Text>
+            {journalPosts.map((post) => (
+              <JournalPostCard
+                key={post.id}
+                post={post}
+                onDeleted={(id) => setJournalPosts((prev) => prev.filter((p) => p.id !== id))}
+              />
+            ))}
+          </View>
+        )}
+
         {/* Actions */}
         <View style={styles.actionsRow}>
+          {/* Create Journal Post — always available */}
+          <TouchableOpacity style={[styles.actionButton, styles.actionButtonOutline]} onPress={handleCreatePost} activeOpacity={0.85}>
+            <Feather name="edit-3" size={16} color={COLORS.accent} />
+            <Text style={styles.actionButtonOutlineText}>Add Journal Post</Text>
+          </TouchableOpacity>
+
           {!healed && (
             <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('CareLog')} activeOpacity={0.85}>
               <Feather name="clipboard" size={16} color={COLORS.textInverse} />
@@ -298,7 +320,6 @@ const styles = StyleSheet.create({
   heroImage: { width: '100%', height: '100%' },
   heroPlaceholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   heroInitial: { color: COLORS.accent, fontSize: 72, fontWeight: '700' },
-  // Full-area gradient overlay sitting over image
   heroGradientOverlay: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg, paddingTop: SPACING.xxl,
@@ -363,13 +384,19 @@ const styles = StyleSheet.create({
   logNote: { color: COLORS.textMuted, fontSize: 12, flex: 1 },
   notesCard: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.borderGold, padding: SPACING.lg },
   notesText: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 21 },
-  actionsRow: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg },
+  actionsRow: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg, gap: SPACING.sm },
   actionButton: {
     backgroundColor: COLORS.accent, borderRadius: RADIUS.md,
     paddingVertical: SPACING.lg, flexDirection: 'row',
     alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
     ...SHADOWS.gold,
   },
+  actionButtonOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
+  },
   actionButtonText: { color: COLORS.textInverse, fontSize: 15, fontWeight: '700' },
+  actionButtonOutlineText: { color: COLORS.accent, fontSize: 15, fontWeight: '600' },
   offScreen: { position: 'absolute', top: -9999, left: -9999 },
 });

@@ -13,6 +13,7 @@ import AddTattooScreen from '../screens/AddTattooScreen';
 import CareLogScreen from '../screens/CareLogScreen';
 import LearnScreen from '../screens/LearnScreen';
 import PortfolioScreen from '../screens/PortfolioScreen';
+import CreateJournalPostScreen from '../screens/CreateJournalPostScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -44,6 +45,7 @@ function HomeStack() {
       <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo Detail' }} />
       <Stack.Screen name="AddTattoo" component={AddTattooScreen} options={{ title: 'Add Tattoo', presentation: 'modal' }} />
+      <Stack.Screen name="CreateJournalPost" component={CreateJournalPostScreen} options={{ title: 'New Journal Post', presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }
@@ -54,6 +56,7 @@ function MyTattoosStack() {
       <Stack.Screen name="MyTattoos" component={MyTattoosScreen} options={{ title: 'My Tattoos' }} />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo Detail' }} />
       <Stack.Screen name="AddTattoo" component={AddTattooScreen} options={{ title: 'Add Tattoo', presentation: 'modal' }} />
+      <Stack.Screen name="CreateJournalPost" component={CreateJournalPostScreen} options={{ title: 'New Journal Post', presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }
@@ -79,6 +82,7 @@ function PortfolioStack() {
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="Portfolio" component={PortfolioScreen} options={{ title: 'Portfolio' }} />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo Detail' }} />
+      <Stack.Screen name="CreateJournalPost" component={CreateJournalPostScreen} options={{ title: 'New Journal Post', presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }
