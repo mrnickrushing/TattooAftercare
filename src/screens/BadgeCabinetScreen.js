@@ -9,7 +9,7 @@ import {
   View, Text, StyleSheet, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-import { getEarnedBadges, BADGE_TYPES, BADGE_META } from '../database/socialDb';
+import { getUserBadges as getEarnedBadges, BADGE_TYPES, BADGE_META } from '../database/socialDb';
 import { getUserStylePassport } from '../database/exploreDb';
 import { getStyleById } from '../constants/tattooStyles';
 
