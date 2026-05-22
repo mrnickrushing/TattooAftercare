@@ -12,7 +12,7 @@ import {
   Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BRI_LOGO = require('../../assets/blood-raven-logo.png');
 import { useFocusEffect } from '@react-navigation/native';
@@ -84,6 +84,9 @@ export default function HomeScreen({ navigation }) {
   const [taskStates, setTaskStates] = useState({});
   const [careLogs, setCareLogs] = useState({});
   const [loading, setLoading] = useState(true);
+  // Safe area insets — top clears Dynamic Island / status bar
+  //                  — bottom clears the tab bar
+  const insets = useSafeAreaInsets();
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const todayDisplay = format(new Date(), 'EEE, MMM d').toUpperCase();
@@ -173,6 +176,9 @@ export default function HomeScreen({ navigation }) {
     : null;
   const daysSinceFirst = firstTattooDate ? getDayNumber(firstTattooDate) - 1 : null;
 
+  // FAB sits above the tab bar: tab bar height (~49) + bottom inset + a gap
+  const fabBottom = insets.bottom + 49 + SPACING.md;
+
   if (loading) {
     return (
       <TattooBackground style={[commonStyles.container, styles.center]}>
@@ -184,7 +190,13 @@ export default function HomeScreen({ navigation }) {
   return (
     <TattooBackground style={commonStyles.container}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          // Top padding = status bar / Dynamic Island height + a comfortable gap
+          { paddingTop: insets.top + SPACING.lg },
+          // Bottom padding = FAB height + some breathing room
+          { paddingBottom: fabBottom + 70 },
+        ]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />}
         showsVerticalScrollIndicator={false}
       >
@@ -346,9 +358,9 @@ export default function HomeScreen({ navigation }) {
         )}
       </ScrollView>
 
-      {/* FAB */}
+      {/* FAB — positioned above the tab bar using real insets */}
       <TouchableOpacity
-        style={[commonStyles.fab]}
+        style={[commonStyles.fab, { bottom: fabBottom }]}
         onPress={() => navigation.navigate('AddTattoo')}
         activeOpacity={0.85}
       >
@@ -360,7 +372,8 @@ export default function HomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
-  scrollContent: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.xl, paddingBottom: 110 },
+  // paddingTop is now dynamic (insets.top + gap), set inline above
+  scrollContent: { paddingHorizontal: SPACING.lg },
 
   heroHeaderZone: { position: 'relative', marginBottom: SPACING.md },
   heroGlowWrap: {
