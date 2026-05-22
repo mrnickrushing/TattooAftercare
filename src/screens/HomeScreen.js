@@ -18,7 +18,7 @@ const BRI_LOGO = require('../../assets/blood-raven-logo.png');
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, commonStyles } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, commonStyles, TAB_BAR_HEIGHT } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 import { isHealed, getStage, getCareTasks, getDayNumber } from '../utils/healingStages';
 import { getCareLogForDate, addCareLog, updateCareLog } from '../database/db';
@@ -176,8 +176,8 @@ export default function HomeScreen({ navigation }) {
     : null;
   const daysSinceFirst = firstTattooDate ? getDayNumber(firstTattooDate) - 1 : null;
 
-  // FAB sits above the tab bar: tab bar height (~49) + bottom inset + a gap
-  const fabBottom = insets.bottom + 49 + SPACING.md;
+  // FAB sits above the tab bar using the shared TAB_BAR_HEIGHT constant
+  const fabBottom = insets.bottom + TAB_BAR_HEIGHT + SPACING.md;
 
   if (loading) {
     return (
@@ -345,11 +345,11 @@ export default function HomeScreen({ navigation }) {
           )}
         </View>
 
-        {/* View all link */}
+        {/* View all link — use getParent() for safe cross-tab navigation */}
         {tattoos.length > 0 && (
           <TouchableOpacity
             style={styles.viewAllRow}
-            onPress={() => navigation.navigate('TattoosTab')}
+            onPress={() => navigation.getParent()?.navigate('TattoosTab')}
             activeOpacity={0.7}
           >
             <Text style={styles.viewAllText}>VIEW ALL TATTOOS</Text>
@@ -358,7 +358,7 @@ export default function HomeScreen({ navigation }) {
         )}
       </ScrollView>
 
-      {/* FAB — positioned above the tab bar using real insets */}
+      {/* FAB — positioned above the tab bar using real insets + TAB_BAR_HEIGHT */}
       <TouchableOpacity
         style={[commonStyles.fab, { bottom: fabBottom }]}
         onPress={() => navigation.navigate('AddTattoo')}

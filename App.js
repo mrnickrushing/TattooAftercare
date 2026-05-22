@@ -7,6 +7,8 @@ import { StatusBar } from 'expo-status-bar';
 import { initDB } from './src/database/db';
 import { requestPermissions } from './src/utils/notifications';
 import { AppProvider } from './src/context/AppContext';
+import { AuthProvider } from './src/context/AuthContext';
+import { SocialProvider } from './src/context/SocialContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { COLORS } from './src/constants/theme';
 import { REVENUECAT_API_KEY_IOS, REVENUECAT_API_KEY_ANDROID } from './src/config';
@@ -51,24 +53,28 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AppProvider>
-        <NavigationContainer
-          theme={{
-            dark: true,
-            colors: {
-              primary: COLORS.accent,
-              background: COLORS.background,
-              card: COLORS.surface,
-              text: COLORS.textPrimary,
-              border: COLORS.border,
-              notification: COLORS.accent,
-            },
-          }}
-        >
-          <StatusBar style="light" />
-          <AppNavigator />
-        </NavigationContainer>
-      </AppProvider>
+      <AuthProvider>
+        <SocialProvider>
+          <AppProvider>
+            <NavigationContainer
+              theme={{
+                dark: true,
+                colors: {
+                  primary: COLORS.accent,
+                  background: COLORS.background,
+                  card: COLORS.surface,
+                  text: COLORS.textPrimary,
+                  border: COLORS.border,
+                  notification: COLORS.accent,
+                },
+              }}
+            >
+              <StatusBar style="light" />
+              <AppNavigator />
+            </NavigationContainer>
+          </AppProvider>
+        </SocialProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

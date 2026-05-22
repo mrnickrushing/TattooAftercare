@@ -261,7 +261,13 @@ export async function getStreak() {
   let streak = 0;
   let currentDate = today;
 
-  while (true) {
+  // Safety cap: never walk back more than 365 days to prevent infinite loop
+  const MAX_STREAK_DAYS = 365;
+  let safety = 0;
+
+  while (safety < MAX_STREAK_DAYS) {
+    safety++;
+
     const row = await database.getFirstAsync(
       `SELECT COUNT(*) as cnt FROM care_logs
        WHERE log_date = ? AND (washed = 1 OR moisturized = 1)`,

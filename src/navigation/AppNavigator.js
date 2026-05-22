@@ -2,6 +2,9 @@
  * AppNavigator.js — Phase 5 update
  * Adds: ExploreScreen, ArtistProfileScreen, BadgeCabinetScreen, FriendsLeaderboardScreen
  * Explore replaces the old Social tab; Profile tab gets Badges + Leaderboard as nested routes.
+ *
+ * Fix: removed unused SocialStack definition.
+ * Fix: removed import of NotificationSettingsScreen (now imported only inside ProfileStack).
  */
 import React from 'react';
 import { StyleSheet, Platform, View } from 'react-native';
@@ -9,17 +12,15 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { COLORS } from '../constants/theme';
+import { COLORS, TAB_BAR_HEIGHT } from '../constants/theme';
 
 import HomeScreen from '../screens/HomeScreen';
 import MyTattoosScreen from '../screens/MyTattoosScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
 import AddTattooScreen from '../screens/AddTattooScreen';
 import CareLogScreen from '../screens/CareLogScreen';
-import LearnScreen from '../screens/LearnScreen';
 import PortfolioScreen from '../screens/PortfolioScreen';
 import CreateJournalPostScreen from '../screens/CreateJournalPostScreen';
-import SocialFeedScreen from '../screens/SocialFeedScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import ExploreScreen from '../screens/ExploreScreen';
@@ -87,15 +88,6 @@ function ExploreStack() {
   );
 }
 
-// Social feed
-function SocialStack() {
-  return (
-    <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen name="SocialFeed" component={SocialFeedScreen} options={{ title: 'Ink Feed' }} />
-    </Stack.Navigator>
-  );
-}
-
 // Portfolio
 function PortfolioStack() {
   return (
@@ -108,7 +100,7 @@ function PortfolioStack() {
   );
 }
 
-// Profile: own profile, notifications, badges, leaderboard
+// Profile: own profile, notifications, badges, leaderboard, settings
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
@@ -131,7 +123,7 @@ export default function AppNavigator() {
           backgroundColor: Platform.OS === 'ios' ? 'transparent' : 'rgba(12,11,8,0.92)',
           borderTopColor: COLORS.tabBarBorder,
           borderTopWidth: 1,
-          height: 60,
+          height: TAB_BAR_HEIGHT,
           paddingBottom: 8,
         },
         tabBarBackground: () => (

@@ -74,6 +74,9 @@ export const FONTS = {
 export const SPACING = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32 };
 export const RADIUS = { sm: 6, md: 10, lg: 14, xl: 20, full: 999 };
 
+// Shared tab bar height constant — use everywhere instead of hardcoded 49/60
+export const TAB_BAR_HEIGHT = 60;
+
 export const SHADOWS = {
   card: {
     shadowColor: '#C8A951',
@@ -202,12 +205,12 @@ export const commonStyles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.md,
   },
+  // NOTE: `bottom` is intentionally NOT set here.
+  // Each screen must compute its own bottom using:
+  //   insets.bottom + TAB_BAR_HEIGHT + SPACING.md
+  // This ensures the FAB always clears the tab bar + home indicator on every device.
   fab: {
     position: 'absolute',
-    // bottom is intentionally NOT set here — each screen adds
-    // insets.bottom + SPACING.xl so the FAB clears the tab bar.
-    // If you use commonStyles.fab directly, override bottom yourself.
-    bottom: SPACING.xl,
     right: SPACING.xl,
     width: 56,
     height: 56,
