@@ -1,15 +1,11 @@
 /**
  * SocialFeedScreen.js  — Issue #16 + #17
  *
- * Issue #16 changes:
- *  - Empty state: "Find Friends" CTA that navigates to the Explore tab
- *
- * Issue #17 changes:
- *  - Reactions write reaction_count back to the posts table in SQLite
- *  - Nested reply comments: Reply button on each comment, indented replies,
- *    parent_comment_id stored correctly
- *  - Long-press own post to delete (with confirm)
- *  - Share button calls React Native Share.share()
+ * Fixes:
+ *  - Bug #2: Empty state "Find Friends" button called navigation.navigate('Explore')
+ *    which fails from inside ProfileStack. Fixed to use navigation.getParent()?.navigate('ExploreTab').
+ *  - Bug #7: updatePostReactionCount was opening a brand new SQLite connection on every
+ *    reaction instead of using the shared singleton. Fixed to import and use getDB from socialDb.
  */
 import React, { useState, useCallback, useRef } from 'react';
 import {
@@ -26,13 +22,13 @@ import {
   saveCommentLocal, getCommentsForPost, deleteCommentLocal,
   upsertReactionLocal, removeReactionLocal, getMyReaction,
   getLocalUser, createNotification,
+  getDB,
 } from '../database/socialDb';
-import * as SQLite from 'expo-sqlite';
 
-// Helper — update reaction_count on the post row directly in SQLite
+// Bug #7 fix: use the shared DB singleton instead of opening a new connection
 async function updatePostReactionCount(postId, delta) {
   try {
-    const db = await SQLite.openDatabaseAsync('tattoo_aftercare.db');
+    const db = await getDB();
     await db.runAsync(
       'UPDATE posts SET reaction_count = MAX(0, reaction_count + ?), updated_at = datetime(\'now\') WHERE id = ?',
       [delta, postId]
@@ -59,7 +55,7 @@ export default function SocialFeedScreen({ navigation }) {
   const [reactionPickerPost, setReactionPickerPost] = useState(null);
   const [myReactions, setMyReactions] = useState({});
   const [postComments, setPostComments] = useState({});
-  const [healingQuestionPost, setHealingQuestionPost] = useState({}); // postId -> bool: is "how's it healing?" mode
+  const [healingQuestionPost, setHealingQuestionPost] = useState({}); // postId -> bool
   const me = useRef(null);
 
   const loadFeed = useCallback(async (silent = false) => {
@@ -93,7 +89,6 @@ export default function SocialFeedScreen({ navigation }) {
     const existing = myReactions[postId];
 
     if (existing === reactionType) {
-      // Toggle off
       await removeReactionLocal(postId, me.current.id);
       await updatePostReactionCount(postId, -1);
       setMyReactions((prev) => { const n = { ...prev }; delete n[postId]; return n; });
@@ -101,10 +96,9 @@ export default function SocialFeedScreen({ navigation }) {
     } else {
       const id = `rxn_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       await upsertReactionLocal({ id, post_id: postId, user_id: me.current.id, reaction_type: reactionType });
-      const delta = existing ? 0 : 1; // switching type doesn't change total count
+      const delta = existing ? 0 : 1;
       if (delta > 0) {
         await updatePostReactionCount(postId, 1);
-        // Notify post owner (if different from current user)
         const post = posts.find((p) => p.id === postId);
         if (post && post.user_id && post.user_id !== me.current.id) {
           const rxn = REACTIONS.find((r) => r.type === reactionType);
@@ -139,7 +133,6 @@ export default function SocialFeedScreen({ navigation }) {
     if (!body || !me.current) return;
     const parentInfo = replyingTo[postId];
     const isHealingQ = !!healingQuestionPost[postId];
-    // Prefix healing question comments so they can be visually identified
     const commentBody = isHealingQ ? `[healing] ${body}` : body;
     const comment = {
       id: `cmt_${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -156,9 +149,7 @@ export default function SocialFeedScreen({ navigation }) {
     setCommentInputs((prev) => ({ ...prev, [postId]: '' }));
     setReplyingTo((prev) => { const n = { ...prev }; delete n[postId]; return n; });
     setHealingQuestionPost((prev) => { const n = { ...prev }; delete n[postId]; return n; });
-    // bump comment_count in state
     setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, comment_count: (p.comment_count || 0) + 1 } : p));
-    // Notify post owner
     const post = posts.find((p) => p.id === postId);
     if (post && post.user_id && post.user_id !== me.current.id) {
       await createNotification({
@@ -242,7 +233,8 @@ export default function SocialFeedScreen({ navigation }) {
         </Text>
         <TouchableOpacity
           style={styles.findFriendsBtn}
-          onPress={() => navigation.navigate('Explore')}
+          // Bug #2 fix: navigate to ExploreTab from a cross-stack context
+          onPress={() => navigation.getParent()?.navigate('ExploreTab')}
           activeOpacity={0.85}
         >
           <Feather name="compass" size={15} color={COLORS.textInverse} />
@@ -400,7 +392,6 @@ export default function SocialFeedScreen({ navigation }) {
                   <View style={styles.commentsSection}>
                     {topComments.map((comment) => (
                       <View key={comment.id}>
-                        {/* Top-level comment */}
                         {(() => {
                           const isHealingComment = comment.body?.startsWith('[healing] ');
                           const displayBody = isHealingComment
@@ -442,7 +433,6 @@ export default function SocialFeedScreen({ navigation }) {
                           );
                         })()}
 
-                        {/* Nested replies */}
                         {repliesFor(comment.id).map((reply) => (
                           <View key={reply.id} style={styles.replyRow}>
                             <View style={styles.replyIndent} />
@@ -468,7 +458,6 @@ export default function SocialFeedScreen({ navigation }) {
                       </View>
                     ))}
 
-                    {/* Comment input */}
                     <View style={styles.commentInputRow}>
                       {replyInfo && (
                         <View style={styles.replyingToBanner}>
@@ -483,7 +472,6 @@ export default function SocialFeedScreen({ navigation }) {
                           </TouchableOpacity>
                         </View>
                       )}
-                      {/* "How's it healing?" toggle — only on top-level comments */}
                       {!replyInfo && (
                         <TouchableOpacity
                           style={[
@@ -550,8 +538,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   centered: { alignItems: 'center', justifyContent: 'center', gap: SPACING.md },
   list: { paddingBottom: 120 },
-
-  // Empty state
   emptyIcon: { fontSize: 48 },
   emptyTitle: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '700', marginTop: SPACING.sm },
   emptyBody: { color: COLORS.textMuted, fontSize: 13, textAlign: 'center', maxWidth: 260, lineHeight: 19 },
@@ -562,8 +548,6 @@ const styles = StyleSheet.create({
   },
   findFriendsBtnText: { color: COLORS.textInverse, fontSize: 14, fontWeight: '700' },
   emptyHint: { color: COLORS.textMuted, fontSize: 12, textAlign: 'center', maxWidth: 240, lineHeight: 18, marginTop: SPACING.md },
-
-  // Post card
   postCard: {
     backgroundColor: COLORS.card,
     marginHorizontal: SPACING.lg,
@@ -605,8 +589,6 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary, fontSize: 14, lineHeight: 20,
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
   },
-
-  // Action bar
   postActions: {
     flexDirection: 'row', gap: SPACING.lg,
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
@@ -616,8 +598,6 @@ const styles = StyleSheet.create({
   actionBtnEmoji: { fontSize: 18 },
   actionBtnText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
   actionBtnTextActive: { color: COLORS.accent },
-
-  // Reaction picker
   reactionPicker: {
     flexDirection: 'row', justifyContent: 'space-around',
     paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md,
@@ -631,8 +611,6 @@ const styles = StyleSheet.create({
   reactionBtnActive: { backgroundColor: COLORS.accentMuted },
   reactionEmoji: { fontSize: 24 },
   reactionLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '600' },
-
-  // Comments
   commentsSection: {
     borderTopWidth: 1, borderTopColor: COLORS.border,
     paddingTop: SPACING.sm,
@@ -677,8 +655,6 @@ const styles = StyleSheet.create({
   },
   commentInput: { flex: 1, color: COLORS.textPrimary, fontSize: 13, paddingVertical: SPACING.sm },
   sendBtn: { padding: SPACING.xs },
-
-  // Healing comment styles (Issue #17)
   healingCommentRow: {
     backgroundColor: 'rgba(200,169,81,0.06)',
     borderRadius: RADIUS.md,
