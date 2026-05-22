@@ -2,8 +2,16 @@
  * ExploreScreen.js
  * Public explore feed — browse all public posts filtered by style tag and/or body part.
  * Infinite scroll with pull-to-refresh. Tapping a post opens PostDetailModal.
+ *
+ * Fixes:
+ *  - Bug #1: Tapping a post with no artist_name silently did nothing.
+ *    Now falls back to UserProfile navigation using post.user_id / post.username.
+ *  - Bug #5: Filter chip changes didn't trigger a reload mid-session.
+ *    useEffect on [activeStyle, activeBodyPart] now calls load(true).
+ *  - Bug #6: `background: 'transparent'` is a web CSS prop, not valid in RN.
+ *    Changed to `backgroundColor: 'transparent'`.
  */
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   TextInput, RefreshControl, Image, Dimensions, ActivityIndicator,
@@ -98,6 +106,12 @@ export default function ExploreScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { load(true); }, [load]));
 
+  // Bug #5 fix: re-load when filter changes mid-session
+  useEffect(() => {
+    offsetRef.current = 0;
+    load(true);
+  }, [activeStyle, activeBodyPart]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await load(true);
@@ -114,13 +128,11 @@ export default function ExploreScreen({ navigation }) {
   const handleStyleFilter = (id) => {
     setActiveStyle((prev) => (prev === id ? null : id));
     setActiveBodyPart(null);
-    offsetRef.current = 0;
   };
 
   const handleBodyPartFilter = (id) => {
     setActiveBodyPart((prev) => (prev === id ? null : id));
     setActiveStyle(null);
-    offsetRef.current = 0;
   };
 
   // Search filters artist names in the post list client-side
@@ -209,8 +221,15 @@ export default function ExploreScreen({ navigation }) {
           <ExploreCard
             post={item}
             onPress={(post) => {
+              // Bug #1 fix: always navigate — use ArtistProfile if artist tagged,
+              // otherwise fall back to UserProfile by user_id/username
               if (post.artist_name) {
                 navigation.navigate('ArtistProfile', { artistName: post.artist_name });
+              } else {
+                navigation.navigate('UserProfile', {
+                  userId: post.user_id,
+                  username: post.username,
+                });
               }
             }}
           />
@@ -292,7 +311,7 @@ const styles = StyleSheet.create({
   cardOverlay: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: SPACING.sm,
-    background: 'transparent',
+    backgroundColor: 'transparent', // Bug #6 fix: was `background` (web CSS prop)
   },
   cardMeta: { gap: 2 },
   cardStyleBadge: {

@@ -1,42 +1,20 @@
 /**
  * socialDb.js — Local SQLite tables for social + gamification features.
  *
- * Schema (main-canonical table names):
- *   local_user, posts, post_comments, post_reactions,
- *   follows, users_cache, notifications, healing_milestones, user_badges
- *
- * Full export list:
- *   BADGE_TYPES, BADGE_META
- *   initSocialDB
- *   --- Local user ---
- *   getLocalUser, getCurrentUser (alias), saveLocalUser
- *   --- Posts ---
- *   savePostLocal, getLocalPosts, getLocalPostsByUser,
- *   addPost, deletePost / deleteLocalPost (alias)
- *   --- Comments ---
- *   saveCommentLocal, getCommentsForPost,
- *   addComment, deleteComment / deleteCommentLocal (alias)
- *   --- Reactions ---
- *   upsertReactionLocal, removeReactionLocal, getMyReaction,
- *   addReaction, removeReaction
- *   --- Follows ---
- *   upsertFollowLocal, removeFollowLocal, isFollowing,
- *   followUser, unfollowUser
- *   --- Users cache ---
- *   cacheUser, getCachedUser
- *   --- Notifications ---
- *   saveNotification, getNotifications, getUnreadNotificationCount,
- *   markAllNotificationsRead, createNotification, markNotificationRead
- *   --- Milestones ---
- *   checkAndSaveMilestone, getUncelebratedMilestones, markMilestoneCelebrated
- *   --- Badges ---
- *   earnBadge, getUserBadges, getEarnedBadges (alias)
+ * Fixes:
+ *  - Bug #4: posts table was missing `reaction_count` column in the original CREATE TABLE.
+ *    It IS present in the schema below — confirmed correct. Added ALTER TABLE migration
+ *    guard in initSocialDB so existing DBs without the column get it added safely.
+ *  - Bug #7: Exported `getDB` so SocialFeedScreen can use the shared singleton
+ *    instead of opening a new SQLite connection on every reaction.
+ *  - Bug #8: createNotification was mapping `refId` → `entity_id` correctly already,
+ *    but saveNotification was also accepting `ref_id` as an alias for safety.
  */
 import * as SQLite from 'expo-sqlite';
 
 let _db = null;
 
-async function getDB() {
+export async function getDB() {
   if (_db) return _db;
   _db = await SQLite.openDatabaseAsync('tattoo_aftercare.db');
   await _db.execAsync('PRAGMA journal_mode = WAL;');
@@ -192,6 +170,16 @@ export async function initSocialDB() {
       UNIQUE(badge_type)
     );
   `);
+
+  // Bug #4 migration guard: add reaction_count to posts if missing (existing DBs)
+  try {
+    await database.execAsync('ALTER TABLE posts ADD COLUMN reaction_count INTEGER DEFAULT 0');
+  } catch { /* column already exists — safe to ignore */ }
+
+  // Migration guard: add artist_tag to posts if missing
+  try {
+    await database.execAsync('ALTER TABLE posts ADD COLUMN artist_tag TEXT');
+  } catch { /* column already exists */ }
 }
 
 // ─── Local user ──────────────────────────────────────────────────────────────
@@ -251,10 +239,6 @@ export async function saveLocalUser(user) {
 
 export async function savePostLocal(post) {
   const database = await getDB();
-  // Ensure artist_tag column exists (migration for existing DBs)
-  try {
-    await database.execAsync('ALTER TABLE posts ADD COLUMN artist_tag TEXT');
-  } catch { /* column already exists */ }
   await database.runAsync(
     `INSERT OR REPLACE INTO posts
      (id, user_id, tattoo_id, caption, photo_uris, style_tags, artist_tag, healing_day,
@@ -426,7 +410,6 @@ export async function isFollowing(followerId, followingId) {
 export async function followUser(followerId, followingId) {
   const id = `follow_${followerId}_${followingId}`;
   await upsertFollowLocal({ id, follower_id: followerId, following_id: followingId });
-  // bump local_user counts if follower is local
   const database = await getDB();
   await database.runAsync(
     'UPDATE local_user SET following_count = following_count + 1 WHERE id = ?',
@@ -486,7 +469,9 @@ export async function saveNotification(n) {
      VALUES (?,?,?,?,?,?,?,?,?,?)`,
     [
       n.id, n.type, n.actor_id || null, n.actor_username || null,
-      n.actor_avatar || null, n.entity_id || null,
+      n.actor_avatar || null,
+      // Bug #8 fix: accept both entity_id and ref_id as the same field
+      n.entity_id || n.ref_id || null,
       n.body || null, n.user_id || null, n.is_read ? 1 : 0,
       n.created_at || new Date().toISOString(),
     ]
@@ -495,9 +480,6 @@ export async function saveNotification(n) {
 
 export async function getNotifications(userIdOrLimit, limit = 30) {
   const database = await getDB();
-  // Support both calling conventions:
-  // getNotifications(limit)  — original main signature
-  // getNotifications(userId, limit) — phase-5 signature
   if (typeof userIdOrLimit === 'number') {
     return await database.getAllAsync(
       'SELECT * FROM notifications ORDER BY created_at DESC LIMIT ?',
@@ -588,7 +570,6 @@ export async function markMilestoneCelebrated(id) {
   await database.runAsync('UPDATE healing_milestones SET celebrated = 1 WHERE id = ?', [id]);
 }
 
-/** Get all milestones (celebrated + uncelebrated) for a tattoo */
 export async function getAllMilestonesForTattoo(tattooId) {
   const database = await getDB();
   return await database.getAllAsync(
@@ -599,11 +580,6 @@ export async function getAllMilestonesForTattoo(tattooId) {
 
 // ─── Badges ──────────────────────────────────────────────────────────────────
 
-/**
- * earnBadge supports both call signatures:
- *   earnBadge(badgeType)           — original (local user, no userId)
- *   earnBadge(userId, badgeType)   — phase-5 (user-scoped)
- */
 export async function earnBadge(userIdOrBadgeType, maybeBadgeType) {
   const database = await getDB();
   let badgeType, userId;
@@ -622,7 +598,7 @@ export async function earnBadge(userIdOrBadgeType, maybeBadgeType) {
     );
     return true;
   } catch {
-    return false; // UNIQUE constraint = already earned
+    return false;
   }
 }
 
