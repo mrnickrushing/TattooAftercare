@@ -26,6 +26,7 @@ import TattooCard from '../components/TattooCard';
 import CareTaskItem from '../components/CareTaskItem';
 import StreakBadge from '../components/StreakBadge';
 import TattooBackground from '../components/TattooBackground';
+import ActivityRings from '../components/ActivityRings';
 
 // Animated count-up number
 function AnimatedNumber({ value, style }) {
@@ -255,6 +256,22 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
+        {/* Activity Rings — show when there are active tattoos */}
+        {activeTattoos.length > 0 && (() => {
+          const washedFraction = activeTattoos.filter((t) => careLogs[t.id]?.washed === 1).length / activeTattoos.length;
+          const moistFraction  = activeTattoos.filter((t) => careLogs[t.id]?.moisturized === 1).length / activeTattoos.length;
+          const loggedFraction = activeTattoos.filter((t) => !!careLogs[t.id]).length / activeTattoos.length;
+          return (
+            <View style={styles.section}>
+              <ActivityRings
+                washed={washedFraction}
+                moisturized={moistFraction}
+                logged={loggedFraction}
+              />
+            </View>
+          );
+        })()}
+
         {/* Today's Care */}
         {activeTattoos.length > 0 && (
           <View style={styles.section}>
@@ -345,16 +362,31 @@ export default function HomeScreen({ navigation }) {
           )}
         </View>
 
-        {/* View all link — use getParent() for safe cross-tab navigation */}
+        {/* View all + Timeline links */}
         {tattoos.length > 0 && (
-          <TouchableOpacity
-            style={styles.viewAllRow}
-            onPress={() => navigation.getParent()?.navigate('TattoosTab')}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.viewAllText}>VIEW ALL TATTOOS</Text>
-            <Feather name="chevron-right" size={14} color={COLORS.accentDim} />
-          </TouchableOpacity>
+          <View style={styles.linksRow}>
+            <TouchableOpacity
+              style={styles.viewAllRow}
+              onPress={() => navigation.getParent()?.navigate('TattoosTab')}
+              activeOpacity={0.7}
+              accessibilityLabel="View all tattoos"
+              accessibilityRole="button"
+            >
+              <Text style={styles.viewAllText}>ALL TATTOOS</Text>
+              <Feather name="chevron-right" size={14} color={COLORS.accentDim} />
+            </TouchableOpacity>
+            <View style={styles.linkDivider} />
+            <TouchableOpacity
+              style={styles.viewAllRow}
+              onPress={() => navigation.navigate('HealingTimeline')}
+              activeOpacity={0.7}
+              accessibilityLabel="View healing timeline"
+              accessibilityRole="button"
+            >
+              <Text style={styles.viewAllText}>TIMELINE</Text>
+              <Feather name="activity" size={14} color={COLORS.accentDim} />
+            </TouchableOpacity>
+          </View>
         )}
       </ScrollView>
 
@@ -452,7 +484,9 @@ const styles = StyleSheet.create({
   allDoneBannerTitle: { color: COLORS.success, fontSize: 15, fontWeight: '700' },
   allDoneBannerSub: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
 
-  viewAllRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: SPACING.md, marginBottom: SPACING.sm },
+  linksRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm },
+  linkDivider: { width: 1, height: 16, backgroundColor: COLORS.border },
+  viewAllRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: SPACING.md },
   viewAllText: { color: COLORS.accentDim, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
 
   emptyState: { alignItems: 'center', paddingVertical: SPACING.xxxl, gap: SPACING.md },

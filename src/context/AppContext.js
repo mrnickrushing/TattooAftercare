@@ -87,7 +87,7 @@ export function AppProvider({ children }) {
       setLoading(false);
     }
     init();
-  }, []);
+  }, [refreshTattoos, refreshStreak, checkProStatus]);
 
   return (
     <AppContext.Provider

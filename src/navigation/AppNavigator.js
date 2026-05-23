@@ -28,6 +28,7 @@ import ArtistProfileScreen from '../screens/ArtistProfileScreen';
 import BadgeCabinetScreen from '../screens/BadgeCabinetScreen';
 import FriendsLeaderboardScreen from '../screens/FriendsLeaderboardScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
+import HealingTimelineScreen from '../screens/HealingTimelineScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -61,6 +62,7 @@ function HomeStack() {
       <Stack.Screen name="AddTattoo" component={AddTattooScreen} options={{ title: 'Add Tattoo', presentation: 'modal' }} />
       <Stack.Screen name="CareLog" component={CareLogScreen} options={{ title: 'Care Log' }} />
       <Stack.Screen name="CreateJournalPost" component={CreateJournalPostScreen} options={{ title: 'New Journal Post', presentation: 'modal' }} />
+      <Stack.Screen name="HealingTimeline" component={HealingTimelineScreen} options={{ title: 'Healing Timeline' }} />
     </Stack.Navigator>
   );
 }
