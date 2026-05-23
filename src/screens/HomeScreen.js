@@ -226,25 +226,58 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.heroHeaderZone}>
           <View style={styles.heroGlowWrap} pointerEvents="none">
             <LinearGradient
-              colors={['rgba(200,169,81,0.12)', 'rgba(200,169,81,0.05)', 'transparent']}
-              start={{ x: 0.5, y: 0.5 }}
-              end={{ x: 1, y: 1 }}
+              colors={['rgba(200,169,81,0.16)', 'rgba(200,169,81,0.04)', 'transparent']}
+              start={{ x: 0.1, y: 0.1 }}
+              end={{ x: 0.9, y: 0.9 }}
               style={styles.heroGlow}
             />
           </View>
 
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <View style={styles.logoBadge}>
-                <Image source={BRI_LOGO} style={styles.logoImage} resizeMode="contain" />
+          <View style={styles.heroCard}>
+            <View style={styles.heroTopRow}>
+              <View style={styles.headerLeft}>
+                <View style={styles.logoBadge}>
+                  <Image source={BRI_LOGO} style={styles.logoImage} resizeMode="contain" />
+                </View>
+                <View style={styles.headerTextBlock}>
+                  <Text style={styles.heroLabel}>Ink Ritual</Text>
+                  <Text style={styles.heroTitle}>Care every day. Heal every layer.</Text>
+                </View>
               </View>
-              <View style={styles.headerTextBlock}>
-                <Text style={styles.logoLine1}>BLOOD RAVEN INK</Text>
-                <Text style={styles.logoLine2}>TATTOO AFTERCARE</Text>
-              </View>
+              <StreakBadge streak={streak} />
             </View>
-            <StreakBadge streak={streak} />
+
+            <Text style={styles.heroSubtitle} numberOfLines={2}>
+              Keep your tattoo healing on track with daily rituals, timeline reminders, and streak rewards.
+            </Text>
+
+            <View style={styles.heroActionRow}>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Today's mission</Text>
+                <Text style={styles.heroStatValue}>{allDone ? 'Complete' : `${pendingCount} steps left`}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.heroButton}
+                onPress={() => navigation.navigate('TattoosTab')}
+                activeOpacity={0.9}
+              >
+                <Text style={styles.heroButtonText}>View my ink</Text>
+              </TouchableOpacity>
+            </View>
           </View>
+        </View>
+
+        <View style={styles.featureCard}>
+          <Text style={styles.featureLabel}>Featured social prompt</Text>
+          <Text style={styles.featureTitle}>Share today’s healing check-in with the community.</Text>
+          <Text style={styles.featureDescription}>A quick post can earn reactions and keep your streaks visible to friends.</Text>
+          <TouchableOpacity
+            style={styles.featureButton}
+            onPress={() => navigation.getParent()?.navigate('ExploreTab')}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.featureButtonText}>Browse Explore</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Decorative gold rule */}
@@ -437,24 +470,75 @@ const styles = StyleSheet.create({
   heroHeaderZone: { position: 'relative', marginBottom: SPACING.md },
   heroGlowWrap: {
     position: 'absolute',
-    top: -30, left: -30,
-    width: 220, height: 120,
+    top: -28, left: -28,
+    width: 240, height: 130,
     pointerEvents: 'none',
   },
-  heroGlow: { width: '100%', height: '100%', borderRadius: 110 },
+  heroGlow: { width: '100%', height: '100%', borderRadius: 120 },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.borderGold,
+    padding: SPACING.lg,
+    ...SHADOWS.goldStrong,
+  },
+  heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.md },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   logoBadge: {
-    width: 36, height: 36, borderRadius: RADIUS.sm,
+    width: 44, height: 44, borderRadius: RADIUS.lg,
     backgroundColor: '#F5F0E8', alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden', borderWidth: 1, borderColor: COLORS.accentBorder,
     ...SHADOWS.gold,
   },
-  logoImage: { width: 30, height: 30 },
-  headerTextBlock: { gap: 1 },
-  logoLine1: { color: COLORS.accent, fontSize: 11, fontWeight: '700', letterSpacing: 2.5, lineHeight: 14 },
-  logoLine2: { color: COLORS.accentDim, fontSize: 9, fontWeight: '600', letterSpacing: 2, lineHeight: 12 },
+  logoImage: { width: 34, height: 34 },
+  headerTextBlock: { gap: 4, flex: 1 },
+  heroLabel: { color: COLORS.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1.8, textTransform: 'uppercase' },
+  heroTitle: { color: COLORS.textPrimary, fontSize: 24, fontWeight: '800', letterSpacing: -0.5, lineHeight: 30 },
+  heroSubtitle: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 20, marginBottom: SPACING.md },
+
+  heroActionRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  heroStatCard: {
+    flex: 1,
+    backgroundColor: 'rgba(200,169,81,0.08)',
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
+  },
+  heroStatLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4 },
+  heroStatValue: { color: COLORS.textPrimary, fontSize: 16, fontWeight: '700' },
+  heroButton: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroButtonText: { color: COLORS.textInverse, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
+
+  featureCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.borderGold,
+    padding: SPACING.lg,
+    marginTop: SPACING.lg,
+    ...SHADOWS.card,
+  },
+  featureLabel: { color: COLORS.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: SPACING.xs },
+  featureTitle: { color: COLORS.textPrimary, fontSize: 16, fontWeight: '800', marginBottom: SPACING.xs, lineHeight: 22 },
+  featureDescription: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 20, marginBottom: SPACING.md },
+  featureButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.accent,
+    borderRadius: RADIUS.full,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xl,
+  },
+  featureButtonText: { color: COLORS.textInverse, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
 
   headerDivider: { height: 1, backgroundColor: 'rgba(200,169,81,0.18)', marginBottom: SPACING.lg },
 

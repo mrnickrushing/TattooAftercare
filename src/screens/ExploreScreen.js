@@ -20,7 +20,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from '../constants/theme';
 import { TATTOO_STYLES, BODY_PARTS } from '../constants/tattooStyles';
-import { getExplorePosts } from '../database/exploreDb';
+import { getExplorePosts, getTrendingPosts } from '../database/exploreDb';
+import { getCurrentUser, getMyReaction, toggleReactionLocal } from '../database/socialDb';
 import EmptyState from '../components/EmptyState';
 import ImageWithLoading from '../components/ImageWithLoading';
 
@@ -45,12 +46,14 @@ function FilterChip({ label, emoji, active, onPress }) {
 }
 
 // ─── Post grid card ───────────────────────────────────────────────────────────
-function ExploreCard({ post, onPress, index }) {
+function ExploreCard({ post, onPress, onToggleReaction, index }) {
   const uri = post.photo_uris
     ? (typeof post.photo_uris === 'string' ? JSON.parse(post.photo_uris)[0] : post.photo_uris[0])
     : null;
   const scaleAnim = useRef(new Animated.Value(0.88)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const badgeScale = useRef(new Animated.Value(1)).current;
+  const [showQuickReactions, setShowQuickReactions] = useState(false);
 
   useEffect(() => {
     Animated.parallel([
@@ -58,6 +61,18 @@ function ExploreCard({ post, onPress, index }) {
       Animated.timing(opacityAnim, { toValue: 1, duration: 280, delay: (index % 10) * 45, useNativeDriver: true }),
     ]).start();
   }, []);
+
+  const runBadgeTap = (toValue = 1) => {
+    Animated.spring(badgeScale, { toValue, useNativeDriver: true, friction: 8 }).start();
+  };
+  const confettiAnim = useRef(new Animated.Value(0)).current;
+  const runConfetti = () => {
+    confettiAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(confettiAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.timing(confettiAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
+  };
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: opacityAnim }}>
@@ -68,6 +83,48 @@ function ExploreCard({ post, onPress, index }) {
         accessibilityLabel={`Post by ${post.username || 'user'}${post.style ? `, ${post.style} style` : ''}`}
         accessibilityRole="button"
       >
+        {/* Reaction count badge (tap to react, long-press for quick reactions) */}
+        <Animated.View style={[styles.reactionBadge, post._my_reacted && styles.reactionBadgeActive, { transform: [{ scale: badgeScale }] }] }>
+          <TouchableOpacity
+            onPress={() => {
+              runBadgeTap(0.88);
+              runConfetti();
+              setTimeout(() => runBadgeTap(1), 120);
+              onToggleReaction && onToggleReaction(post, 'love');
+            }}
+            onLongPress={() => setShowQuickReactions(true)}
+            onPressOut={() => setShowQuickReactions(false)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="React to post"
+          >
+            <Text style={styles.reactionBadgeText}>{post.reaction_count ? post.reaction_count : 0} 🔥</Text>
+          </TouchableOpacity>
+        </Animated.View>
+        <Animated.Text
+          pointerEvents="none"
+          style={[styles.confettiText, {
+            opacity: confettiAnim,
+            transform: [
+              { translateY: confettiAnim.interpolate({ inputRange: [0, 1], outputRange: [6, -18] }) },
+              { scale: confettiAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.1] }) },
+            ]
+          }]}
+        >
+          ✨
+        </Animated.Text>
+        {showQuickReactions && (
+          <View style={styles.quickReactionsRow} pointerEvents="box-none">
+            <TouchableOpacity onPress={() => onToggleReaction && onToggleReaction(post, 'like')} style={styles.quickReactionBtn}>
+              <Text style={styles.quickReactionText}>👍</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onToggleReaction && onToggleReaction(post, 'love')} style={styles.quickReactionBtn}>
+              <Text style={styles.quickReactionText}>❤️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onToggleReaction && onToggleReaction(post, 'fire')} style={styles.quickReactionBtn}>
+              <Text style={styles.quickReactionText}>🔥</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {uri ? (
           <ImageWithLoading source={{ uri }} style={styles.cardImage} resizeMode="cover" />
         ) : (
@@ -104,6 +161,78 @@ export default function ExploreScreen({ navigation }) {
   const [hasMore, setHasMore] = useState(true);
   const offsetRef = useRef(0);
 
+  const [trendingPosts, setTrendingPosts] = useState([]);
+  const hasTrending = trendingPosts.length > 0;
+
+  const handlePostPress = useCallback((post) => {
+    if (post.artist_name) {
+      navigation.navigate('ArtistProfile', { artistName: post.artist_name });
+    } else {
+      navigation.navigate('UserProfile', {
+        userId: post.user_id,
+        username: post.username,
+      });
+    }
+  }, [navigation]);
+
+  const loadTrending = useCallback(async () => {
+    try {
+      const t = await getTrendingPosts({ limit: 6 });
+      setTrendingPosts(t);
+    } catch (e) {
+      console.error('loadTrending:', e);
+      setTrendingPosts([]);
+    }
+  }, []);
+
+  const syncReactionsForCurrentPosts = useCallback(async () => {
+    try {
+      const user = await getCurrentUser();
+      if (!user || posts.length === 0) return;
+      const checks = await Promise.all(posts.map((p) => getMyReaction(p.id, user.id)));
+      setPosts(posts.map((p, i) => ({ ...p, _my_reacted: !!checks[i] })));
+    } catch (e) {
+      console.error('syncReactionsForCurrentPosts', e);
+    }
+  }, [posts]);
+
+  const syncReactionsForTrendingPosts = useCallback(async () => {
+    try {
+      const user = await getCurrentUser();
+      if (!user || trendingPosts.length === 0) return;
+      const checks = await Promise.all(trendingPosts.map((p) => getMyReaction(p.id, user.id)));
+      setTrendingPosts(trendingPosts.map((p, i) => ({ ...p, _my_reacted: !!checks[i] })));
+    } catch (e) {
+      console.error('syncReactionsForTrendingPosts', e);
+    }
+  }, [trendingPosts]);
+
+  const renderTrendingCard = ({ item }) => {
+    const uri = item.photo_uris
+      ? (typeof item.photo_uris === 'string' ? JSON.parse(item.photo_uris)[0] : item.photo_uris[0])
+      : null;
+    return (
+      <TouchableOpacity
+        style={styles.trendingCard}
+        onPress={() => handlePostPress(item)}
+        activeOpacity={0.9}
+      >
+        {uri ? (
+          <ImageWithLoading source={{ uri }} style={styles.trendingImage} resizeMode="cover" />
+        ) : (
+          <View style={[styles.trendingImage, styles.trendingPlaceholder]}>
+            <Text style={styles.trendingPlaceholderText}>Featured</Text>
+          </View>
+        )}
+        <View style={styles.trendingOverlay} />
+        <View style={styles.trendingMeta}>
+          <Text style={styles.trendingMetaStyle}>{item.style || 'Tattoo'}</Text>
+          <Text style={styles.trendingMetaUser}>@{item.username || 'artist'}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   const load = useCallback(async (reset = false) => {
     const offset = reset ? 0 : offsetRef.current;
     const results = await getExplorePosts({
@@ -122,13 +251,45 @@ export default function ExploreScreen({ navigation }) {
     setHasMore(results.length === PAGE_SIZE);
   }, [activeStyle, activeBodyPart]);
 
-  useFocusEffect(useCallback(() => { load(true); }, [load]));
+  useFocusEffect(useCallback(() => {
+    load(true).then(() => syncReactionsForCurrentPosts());
+    loadTrending().then(() => syncReactionsForTrendingPosts());
+  }, [load, loadTrending, syncReactionsForCurrentPosts, syncReactionsForTrendingPosts]));
 
   // Bug #5 fix: re-load when filter changes mid-session
   useEffect(() => {
     offsetRef.current = 0;
     load(true);
   }, [activeStyle, activeBodyPart]);
+
+  const handleToggleReaction = useCallback(async (post, emoji = 'love') => {
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
+        navigation.navigate('Auth');
+        return;
+      }
+      const existing = await getMyReaction(post.id, user.id);
+      // optimistic UI update
+      setPosts((prev) => prev.map((p) => (
+        p.id === post.id ? { ...p, reaction_count: existing ? Math.max(0, (p.reaction_count || 0) - 1) : ((p.reaction_count || 0) + 1), _my_reacted: !existing } : p
+      )));
+      setTrendingPosts((prev) => prev.map((p) => (
+        p.id === post.id ? { ...p, reaction_count: existing ? Math.max(0, (p.reaction_count || 0) - 1) : ((p.reaction_count || 0) + 1), _my_reacted: !existing } : p
+      )));
+
+      // pass chosen emoji through to toggle handler
+      await toggleReactionLocal(post.id, user.id, emoji);
+      // sync trending/posts after the toggle to ensure counts and flags are accurate
+      load(true).then(() => syncReactionsForCurrentPosts());
+      loadTrending().then(() => syncReactionsForTrendingPosts());
+    } catch (e) {
+      console.error('toggleReaction failed', e);
+      // best-effort: reload feed/trending to resync
+      load(true).then(() => syncReactionsForCurrentPosts());
+      loadTrending().then(() => syncReactionsForTrendingPosts());
+    }
+  }, [load, loadTrending, navigation]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -204,6 +365,28 @@ export default function ExploreScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {hasTrending && (
+        <View style={styles.trendingSection}>
+          <View style={styles.trendingHeaderRow}>
+            <View>
+              <Text style={styles.trendingLabel}>Trending Ink</Text>
+              <Text style={styles.trendingSubtitle}>Fresh looks from the community feed</Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.getParent()?.navigate('ExploreTab')} activeOpacity={0.75}>
+              <Text style={styles.trendingSeeAll}>See all</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={trendingPosts}
+            keyExtractor={(p) => `trend-${p.id}`}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.trendingRow}
+            renderItem={renderTrendingCard}
+          />
+        </View>
+      )}
+
       {/* Filter chips */}
       <FlatList
         data={filters}
@@ -264,6 +447,7 @@ export default function ExploreScreen({ navigation }) {
                 });
               }
             }}
+            onToggleReaction={handleToggleReaction}
           />
         )}
         refreshControl={
@@ -316,10 +500,71 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface, borderRadius: RADIUS.full,
     borderWidth: 1, borderColor: COLORS.border,
   },
-  chipActive: { backgroundColor: COLORS.accentMuted, borderColor: COLORS.accentBorder },
+  chipActive: { backgroundColor: COLORS.accentMuted, borderColor: COLORS.accent, shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 5 },
   chipEmoji: { fontSize: 12 },
   chipLabel: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
   chipLabelActive: { color: COLORS.accent },
+  trendingSection: { paddingVertical: SPACING.lg },
+  trendingHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, marginBottom: SPACING.sm },
+  trendingLabel: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '800' },
+  trendingSubtitle: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2 },
+  trendingSeeAll: { color: COLORS.accent, fontSize: 12, fontWeight: '700' },
+  trendingRow: { paddingLeft: SPACING.lg, paddingRight: SPACING.sm, gap: SPACING.sm },
+  trendingCard: {
+    width: 152,
+    height: 216,
+    borderRadius: RADIUS.xl,
+    overflow: 'hidden',
+    marginRight: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.borderGold,
+    backgroundColor: COLORS.card,
+    ...SHADOWS.card,
+  },
+  trendingImage: { width: '100%', height: '100%' },
+  trendingPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  trendingPlaceholderText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '700' },
+  trendingOverlay: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, height: 76,
+    backgroundColor: 'rgba(10, 10, 10, 0.55)',
+  },
+  trendingMeta: {
+    position: 'absolute', left: SPACING.sm, right: SPACING.sm, bottom: SPACING.sm,
+  },
+  trendingMetaStyle: { color: COLORS.accent, fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
+  trendingMetaUser: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '800' },
+  reactionBadge: {
+    position: 'absolute',
+    top: SPACING.sm,
+    right: SPACING.sm,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.borderGold,
+  },
+  reactionBadgeText: { color: COLORS.accent, fontSize: 11, fontWeight: '700' },
+  reactionBadgeActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent, },
+  reactionBadgeTextActive: { color: COLORS.background },
+  quickReactionsRow: {
+    position: 'absolute',
+    top: SPACING.sm,
+    right: SPACING.sm + 48,
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    backgroundColor: 'transparent',
+  },
+  quickReactionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: SPACING.xs,
+  },
+  quickReactionText: { fontSize: 16 },
   activeFilterRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xs,
