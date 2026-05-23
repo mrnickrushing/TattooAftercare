@@ -74,7 +74,18 @@ export default function UserProfileScreen({ route, navigation }) {
       const p = await getLocalPostsByUser(targetId || profileUser.id);
       setPosts(p);
     }
-    const b = await getUserBadges();
+    // Evaluate and fetch badges for the profile owner
+    if (isOwn && localUser?.id) {
+      // award badges if criteria met
+      const newly = await evaluateBadgesForUser(localUser.id);
+      if (newly && newly.length > 0) {
+        // optionally create notifications for new badges
+        for (const nb of newly) {
+          await createNotification({ userId: localUser.id, type: 'badge', actorId: null, refId: nb, body: `You earned the ${BADGE_META[nb]?.label || nb} badge!` });
+        }
+      }
+    }
+    const b = await getUserBadges(user?.id || null);
     setBadges(b);
 
     if (!isOwn && localUser?.id && viewingUserId) {
@@ -155,6 +166,15 @@ export default function UserProfileScreen({ route, navigation }) {
             <Text style={styles.statLabel}>{s.label}</Text>
           </View>
         ))}
+      </View>
+
+      {/* Badge progress */}
+      <View style={styles.badgeProgressRow}>
+        <Text style={styles.badgeProgressLabel}>Badges</Text>
+        <View style={styles.badgeProgressBarBg}>
+          <View style={[styles.badgeProgressBarFill, { width: `${(badges.length / Object.keys(BADGE_META).length) * 100}%` }]} />
+        </View>
+        <Text style={styles.badgeProgressCount}>{badges.length} / {Object.keys(BADGE_META).length}</Text>
       </View>
 
       {/* Follow / Edit button */}
@@ -402,4 +422,9 @@ const styles = StyleSheet.create({
   postThumbPlaceholder: {
     backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center',
   },
+  badgeProgressRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.md },
+  badgeProgressLabel: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700', width: 60 },
+  badgeProgressBarBg: { flex: 1, height: 8, backgroundColor: COLORS.border, borderRadius: RADIUS.full, overflow: 'hidden' },
+  badgeProgressBarFill: { height: '100%', backgroundColor: COLORS.accent },
+  badgeProgressCount: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700', width: 54, textAlign: 'right' },
 });

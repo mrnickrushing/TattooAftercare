@@ -6,6 +6,7 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
+    "validate:jsx": "npx babel --presets @babel/preset-react src --extensions \".js,.jsx\" --out-dir /tmp/babel-check --no-babelrc",
     "web": "expo start --web",
     "icon": "node generate-icon.js"
   },
@@ -43,6 +44,10 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@babel/cli": "^7.25.0",
+    "@babel/preset-react": "^7.18.6",
+    "@babel/plugin-proposal-class-properties": "^7.18.6",
+    "@babel/preset-env": "^7.25.0",
     "sharp": "^0.33.5"
   },
   "private": true

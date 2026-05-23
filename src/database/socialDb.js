@@ -388,6 +388,34 @@ export async function addReaction(postId, userId, emoji = 'love') {
 }
 export const removeReaction = removeReactionLocal;
 
+/**
+ * Toggle reaction for a post for the given user.
+ * If a reaction exists, remove it and decrement the post's reaction_count.
+ * If not, add one and increment reaction_count.
+ * Returns { action: 'added'|'removed' }
+ */
+export async function toggleReactionLocal(postId, userId, emoji = 'love') {
+  const database = await getDB();
+  const existing = await getMyReaction(postId, userId);
+  if (existing) {
+    await removeReactionLocal(postId, userId);
+    // decrement safely
+    await database.runAsync(
+      `UPDATE posts SET reaction_count = CASE WHEN reaction_count > 0 THEN reaction_count - 1 ELSE 0 END WHERE id = ?`,
+      [postId]
+    );
+    return { action: 'removed' };
+  } else {
+    const id = `rxn_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    await upsertReactionLocal({ id, post_id: postId, user_id: userId, reaction_type: emoji });
+    await database.runAsync(
+      `UPDATE posts SET reaction_count = COALESCE(reaction_count, 0) + 1 WHERE id = ?`,
+      [postId]
+    );
+    return { action: 'added' };
+  }
+}
+
 // ─── Follows ─────────────────────────────────────────────────────────────────
 
 export async function upsertFollowLocal(follow) {
@@ -622,6 +650,73 @@ export async function getUserBadges(userId) {
   return await database.getAllAsync(
     'SELECT * FROM user_badges ORDER BY earned_at DESC'
   ) || [];
+}
+
+/**
+ * Evaluate badge eligibility for a user and award any newly earned badges.
+ * Returns an array of badge types that were newly awarded.
+ */
+export async function evaluateBadgesForUser(userId) {
+  const database = await getDB();
+  const newlyEarned = [];
+  if (!userId) return newlyEarned;
+
+  // Fetch user summary
+  const user = await database.getFirstAsync('SELECT * FROM users_cache WHERE id = ? LIMIT 1', [userId]) || await database.getFirstAsync('SELECT * FROM local_user WHERE id = ? LIMIT 1', [userId]);
+
+  // Posts count
+  const postsRow = await database.getFirstAsync('SELECT COUNT(*) as cnt FROM posts WHERE user_id = ?', [userId]);
+  const postsCount = postsRow?.cnt || 0;
+
+  // Followers
+  const followerCount = (user && user.follower_count) || 0;
+
+  // Tattoo count
+  const tattooCount = (user && user.tattoo_count) || 0;
+
+  // Style passport: distinct styles in user's tattoos/posts
+  const stylesRows = await database.getAllAsync('SELECT style_tags FROM posts WHERE user_id = ? AND style_tags IS NOT NULL', [userId]) || [];
+  const styleSet = new Set();
+  for (const r of stylesRows) {
+    try {
+      const arr = JSON.parse(r.style_tags || '[]');
+      for (const s of arr) styleSet.add(s);
+    } catch {}
+  }
+
+  // Trendsetter: any post with >= 50 reactions
+  const trendRow = await database.getFirstAsync('SELECT COUNT(*) as cnt FROM posts WHERE user_id = ? AND reaction_count >= 50', [userId]);
+  const hasTrend = (trendRow?.cnt || 0) > 0;
+
+  // Check & award
+  const already = (await getUserBadges(userId)).map((b) => b.badge_type);
+
+  if (postsCount >= 1 && !already.includes(BADGE_TYPES.FIRST_POST)) {
+    const ok = await earnBadge(userId, BADGE_TYPES.FIRST_POST);
+    if (ok) newlyEarned.push(BADGE_TYPES.FIRST_POST);
+  }
+
+  if (followerCount >= 10 && !already.includes(BADGE_TYPES.SOCIAL_BUTTERFLY)) {
+    const ok = await earnBadge(userId, BADGE_TYPES.SOCIAL_BUTTERFLY);
+    if (ok) newlyEarned.push(BADGE_TYPES.SOCIAL_BUTTERFLY);
+  }
+
+  if (tattooCount >= 5 && !already.includes(BADGE_TYPES.INK_COLLECTOR)) {
+    const ok = await earnBadge(userId, BADGE_TYPES.INK_COLLECTOR);
+    if (ok) newlyEarned.push(BADGE_TYPES.INK_COLLECTOR);
+  }
+
+  if (styleSet.size >= 3 && !already.includes(BADGE_TYPES.STYLE_PASSPORT)) {
+    const ok = await earnBadge(userId, BADGE_TYPES.STYLE_PASSPORT);
+    if (ok) newlyEarned.push(BADGE_TYPES.STYLE_PASSPORT);
+  }
+
+  if (hasTrend && !already.includes(BADGE_TYPES.TRENDSETTER)) {
+    const ok = await earnBadge(userId, BADGE_TYPES.TRENDSETTER);
+    if (ok) newlyEarned.push(BADGE_TYPES.TRENDSETTER);
+  }
+
+  return newlyEarned;
 }
 
 /** Alias used by BadgeCabinetScreen */

@@ -150,3 +150,28 @@ export async function getUserStylePassport(userId) {
     return [];
   }
 }
+
+/**
+ * Get trending posts by reaction_count and recency.
+ * Returns the top `limit` public posts ordered by reaction_count desc, then created_at desc.
+ */
+export async function getTrendingPosts({ limit = 8 } = {}) {
+  try {
+    const db = await getDB();
+    const results = await db.getAllAsync(
+      `SELECT p.*, u.username, u.avatar_uri, u.display_name,
+              t.name AS tattoo_name, t.style, t.body_part, t.artist_name
+       FROM posts p
+       LEFT JOIN users_cache u ON p.user_id = u.id
+       LEFT JOIN tattoos t ON p.tattoo_id = t.id
+       WHERE p.visibility = 'public'
+       ORDER BY COALESCE(p.reaction_count, 0) DESC, p.created_at DESC
+       LIMIT ?`,
+      [limit]
+    );
+    return results || [];
+  } catch (e) {
+    console.error('getTrendingPosts:', e);
+    return [];
+  }
+}
