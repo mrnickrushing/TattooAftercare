@@ -31,10 +31,14 @@ export default function App() {
 
   useEffect(() => {
     async function bootstrap() {
+      console.log('App bootstrap starting on', Platform.OS);
       try {
         await initDB();
-        await requestPermissions();
+        if (Platform.OS !== 'web') {
+          await requestPermissions();
+        }
         initRevenueCat();
+        console.log('App bootstrap finished');
       } catch (e) {
         console.warn('Bootstrap error:', e);
       } finally {
