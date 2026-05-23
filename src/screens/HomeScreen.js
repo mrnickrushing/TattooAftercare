@@ -10,6 +10,7 @@ import {
   Alert,
   Image,
   Animated,
+  Vibration,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +28,7 @@ import CareTaskItem from '../components/CareTaskItem';
 import StreakBadge from '../components/StreakBadge';
 import TattooBackground from '../components/TattooBackground';
 import ActivityRings from '../components/ActivityRings';
+import ConfettiCannon from '../components/ConfettiCannon';
 
 // Animated count-up number
 function AnimatedNumber({ value, style }) {
@@ -85,6 +87,9 @@ export default function HomeScreen({ navigation }) {
   const [taskStates, setTaskStates] = useState({});
   const [careLogs, setCareLogs] = useState({});
   const [loading, setLoading] = useState(true);
+  const [confetti, setConfetti] = useState(false);
+  const allDoneBannerScale = useRef(new Animated.Value(1)).current;
+  const prevAllDone = useRef(false);
   // Safe area insets — top clears Dynamic Island / status bar
   //                  — bottom clears the tab bar
   const insets = useSafeAreaInsets();
@@ -163,6 +168,7 @@ export default function HomeScreen({ navigation }) {
     setRefreshing(false);
   }, []);
 
+  // Fire confetti + haptic the first time all tasks flip to done
   const allTasks = [];
   for (const tattoo of activeTattoos) {
     const stage = getStage(tattoo.date_tattooed);
@@ -171,6 +177,21 @@ export default function HomeScreen({ navigation }) {
   }
   const pendingCount = allTasks.filter(({ task, tattoo }) => !(taskStates[tattoo.id]?.[task.id] ?? false)).length;
   const allDone = allTasks.length > 0 && pendingCount === 0;
+
+  useEffect(() => {
+    if (allDone && !prevAllDone.current) {
+      prevAllDone.current = true;
+      Vibration.vibrate([0, 80, 60, 80]);
+      setConfetti(true);
+      Animated.sequence([
+        Animated.spring(allDoneBannerScale, { toValue: 1.06, tension: 120, friction: 5, useNativeDriver: true }),
+        Animated.spring(allDoneBannerScale, { toValue: 1, tension: 80, friction: 8, useNativeDriver: true }),
+      ]).start();
+      const timer = setTimeout(() => setConfetti(false), 2000);
+      return () => clearTimeout(timer);
+    }
+    if (!allDone) prevAllDone.current = false;
+  }, [allDone]);
 
   const firstTattooDate = tattoos.length > 0
     ? tattoos.reduce((earliest, t) => (!earliest || t.date_tattooed < earliest ? t.date_tattooed : earliest), null)
@@ -291,16 +312,18 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             {allDone ? (
-              <LinearGradient
-                colors={[COLORS.successMuted, 'rgba(76,175,125,0.08)']}
-                style={styles.allDoneBanner}
-              >
-                <Text style={styles.allDoneBannerEmoji}>🎉</Text>
-                <View>
-                  <Text style={styles.allDoneBannerTitle}>All done for today!</Text>
-                  <Text style={styles.allDoneBannerSub}>Great job taking care of your ink.</Text>
-                </View>
-              </LinearGradient>
+              <Animated.View style={{ transform: [{ scale: allDoneBannerScale }] }}>
+                <LinearGradient
+                  colors={[COLORS.successMuted, 'rgba(76,175,125,0.08)']}
+                  style={styles.allDoneBanner}
+                >
+                  <Text style={styles.allDoneBannerEmoji}>🎉</Text>
+                  <View>
+                    <Text style={styles.allDoneBannerTitle}>All done for today!</Text>
+                    <Text style={styles.allDoneBannerSub}>Great job taking care of your ink.</Text>
+                  </View>
+                </LinearGradient>
+              </Animated.View>
             ) : (
               <View style={styles.taskCard}>
                 {allTasks.length === 0 ? (
@@ -389,6 +412,8 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
       </ScrollView>
+
+      <ConfettiCannon active={confetti} />
 
       {/* FAB — positioned above the tab bar using real insets + TAB_BAR_HEIGHT */}
       <TouchableOpacity

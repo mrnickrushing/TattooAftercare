@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, Alert, Dimensions,
+  Image, Alert, Dimensions, Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
@@ -36,6 +36,7 @@ export default function TattooDetailScreen({ route, navigation }) {
   const [milestoneQueue, setMilestoneQueue] = useState([]);
   const [activeMilestone, setActiveMilestone] = useState(null);
   const [allMilestones, setAllMilestones] = useState([]);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const loadData = useCallback(async () => {
     const t = await getTattooById(tattooId);
@@ -140,24 +141,36 @@ export default function TattooDetailScreen({ route, navigation }) {
   try { dateStr = format(parseISO(tattoo.date_tattooed), 'MMMM d, yyyy'); } catch { dateStr = tattoo.date_tattooed; }
   const finalPhotoUri = photos.length > 0 ? photos[photos.length - 1].uri : null;
 
+  const heroTranslate = scrollY.interpolate({ inputRange: [-HERO_HEIGHT, 0, HERO_HEIGHT], outputRange: [HERO_HEIGHT * 0.4, 0, -HERO_HEIGHT * 0.3], extrapolate: 'clamp' });
+  const heroScale = scrollY.interpolate({ inputRange: [-HERO_HEIGHT, 0], outputRange: [1.4, 1], extrapolate: 'clamp' });
+
   return (
     <View style={commonStyles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+      >
 
-        {/* Hero */}
+        {/* Hero with parallax */}
         <View style={styles.hero}>
-          {tattoo.thumbnail_uri ? (
-            <Image source={{ uri: tattoo.thumbnail_uri }} style={styles.heroImage} />
-          ) : (
-            <LinearGradient
-              colors={['#1A1917', '#2A2822', '#1A1917']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.heroPlaceholder}
-            >
-              <Text style={styles.heroInitial}>{tattoo.name?.[0]?.toUpperCase() || '?'}</Text>
-            </LinearGradient>
-          )}
+          <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: heroTranslate }, { scale: heroScale }] }]}>
+            {tattoo.thumbnail_uri ? (
+              <Image source={{ uri: tattoo.thumbnail_uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            ) : (
+              <LinearGradient
+                colors={['#1A1917', '#2A2822', '#1A1917']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              >
+                <View style={styles.heroPlaceholder}>
+                  <Text style={styles.heroInitial}>{tattoo.name?.[0]?.toUpperCase() || '?'}</Text>
+                </View>
+              </LinearGradient>
+            )}
+          </Animated.View>
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.85)']}
             locations={[0.45, 1]}
@@ -302,7 +315,7 @@ export default function TattooDetailScreen({ route, navigation }) {
                 const meta = getMilestoneMeta(ms.milestone_type);
                 if (!meta) return null;
                 return (
-                  <View key={ms.id}>
+                  <StaggeredRow key={ms.id} index={i}>
                     {i > 0 && <View style={styles.logDivider} />}
                     <TouchableOpacity
                       style={styles.milestoneRow}
@@ -321,7 +334,7 @@ export default function TattooDetailScreen({ route, navigation }) {
                         <Text style={[styles.milestoneShareText, { color: meta.color }]}>Reshare</Text>
                       </View>
                     </TouchableOpacity>
-                  </View>
+                  </StaggeredRow>
                 );
               })}
             </View>
@@ -363,7 +376,7 @@ export default function TattooDetailScreen({ route, navigation }) {
             </TouchableOpacity>
           )}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Off-screen share card */}
       {sharing && (
@@ -381,6 +394,22 @@ export default function TattooDetailScreen({ route, navigation }) {
         />
       )}
     </View>
+  );
+}
+
+function StaggeredRow({ children, index }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateX = useRef(new Animated.Value(-16)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 300, delay: index * 70, useNativeDriver: true }),
+      Animated.spring(translateX, { toValue: 0, tension: 70, friction: 10, delay: index * 70, useNativeDriver: true }),
+    ]).start();
+  }, []);
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateX }] }}>
+      {children}
+    </Animated.View>
   );
 }
 

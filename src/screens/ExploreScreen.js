@@ -14,7 +14,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, RefreshControl, Image, Dimensions, ActivityIndicator,
+  TextInput, RefreshControl, Image, Dimensions, ActivityIndicator, Animated,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -45,39 +45,50 @@ function FilterChip({ label, emoji, active, onPress }) {
 }
 
 // ─── Post grid card ───────────────────────────────────────────────────────────
-function ExploreCard({ post, onPress }) {
+function ExploreCard({ post, onPress, index }) {
   const uri = post.photo_uris
     ? (typeof post.photo_uris === 'string' ? JSON.parse(post.photo_uris)[0] : post.photo_uris[0])
     : null;
+  const scaleAnim = useRef(new Animated.Value(0.88)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, { toValue: 1, tension: 80, friction: 9, delay: (index % 10) * 45, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 280, delay: (index % 10) * 45, useNativeDriver: true }),
+    ]).start();
+  }, []);
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => onPress(post)}
-      activeOpacity={0.88}
-      accessibilityLabel={`Post by ${post.username || 'user'}${post.style ? `, ${post.style} style` : ''}`}
-      accessibilityRole="button"
-    >
-      {uri ? (
-        <ImageWithLoading source={{ uri }} style={styles.cardImage} resizeMode="cover" />
-      ) : (
-        <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-          <Text style={{ fontSize: 28 }}>💉</Text>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: opacityAnim }}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => onPress(post)}
+        activeOpacity={0.88}
+        accessibilityLabel={`Post by ${post.username || 'user'}${post.style ? `, ${post.style} style` : ''}`}
+        accessibilityRole="button"
+      >
+        {uri ? (
+          <ImageWithLoading source={{ uri }} style={styles.cardImage} resizeMode="cover" />
+        ) : (
+          <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
+            <Text style={{ fontSize: 28 }}>💉</Text>
+          </View>
+        )}
+        <View style={styles.cardOverlay}>
+          <View style={styles.cardMeta}>
+            {post.style ? (
+              <View style={styles.cardStyleBadge}>
+                <Text style={styles.cardStyleText}>
+                  {TATTOO_STYLES.find((s) => s.id === post.style)?.label || post.style}
+                </Text>
+              </View>
+            ) : null}
+            <Text style={styles.cardUsername} numberOfLines={1}>@{post.username || 'user'}</Text>
+          </View>
         </View>
-      )}
-      <View style={styles.cardOverlay}>
-        <View style={styles.cardMeta}>
-          {post.style ? (
-            <View style={styles.cardStyleBadge}>
-              <Text style={styles.cardStyleText}>
-                {TATTOO_STYLES.find((s) => s.id === post.style)?.label || post.style}
-              </Text>
-            </View>
-          ) : null}
-          <Text style={styles.cardUsername} numberOfLines={1}>@{post.username || 'user'}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -151,6 +162,12 @@ export default function ExploreScreen({ navigation }) {
       )
     : posts;
 
+  const listFadeAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    listFadeAnim.setValue(0);
+    Animated.timing(listFadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+  }, [search, activeStyle, activeBodyPart]);
+
   const filters = filterMode === 'style' ? TATTOO_STYLES : BODY_PARTS;
   const activeFilter = filterMode === 'style' ? activeStyle : activeBodyPart;
   const handleFilter = filterMode === 'style' ? handleStyleFilter : handleBodyPartFilter;
@@ -220,6 +237,7 @@ export default function ExploreScreen({ navigation }) {
       )}
 
       {/* Post grid */}
+      <Animated.View style={{ flex: 1, opacity: listFadeAnim }}>
       <FlatList
         data={displayedPosts}
         keyExtractor={(p) => p.id}
@@ -230,9 +248,10 @@ export default function ExploreScreen({ navigation }) {
         maxToRenderPerBatch={10}
         windowSize={10}
         initialNumToRender={10}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <ExploreCard
             post={item}
+            index={index}
             onPress={(post) => {
               // Bug #1 fix: always navigate — use ArtistProfile if artist tagged,
               // otherwise fall back to UserProfile by user_id/username
@@ -266,6 +285,7 @@ export default function ExploreScreen({ navigation }) {
         }
         showsVerticalScrollIndicator={false}
       />
+      </Animated.View>
     </View>
   );
 }

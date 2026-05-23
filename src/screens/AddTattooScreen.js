@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Alert, KeyboardAvoidingView, Platform, Image, Modal,
+  TextInput, Alert, KeyboardAvoidingView, Platform, Image, Modal, Animated,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -33,6 +33,13 @@ export default function AddTattooScreen({ navigation }) {
   const [placementPickerVisible, setPlacementPickerVisible] = useState(false);
 
   const isProGated = !proStatus && activeCount >= 1;
+
+  // Step completions for 4-step progress: name, date, style/placement, artist
+  const step1Done = name.trim().length > 0;
+  const step2Done = /^\d{4}-\d{2}-\d{2}$/.test(date.trim());
+  const step3Done = !!(style || placement);
+  const step4Done = !!(artistName.trim() || thumbnail);
+  const stepsCompleted = [step1Done, step2Done, step3Done, step4Done].filter(Boolean).length;
 
   const handlePickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, allowsEditing: true, aspect: [1, 1] });
@@ -112,6 +119,9 @@ export default function AddTattooScreen({ navigation }) {
     <KeyboardAvoidingView style={commonStyles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
+        {/* 4-step progress indicator */}
+        <StepProgress steps={4} completed={stepsCompleted} />
+
         {/* Photo */}
         <View style={styles.photoSection}>
           <TouchableOpacity style={styles.photoCircle} onPress={handlePickPhoto} activeOpacity={0.8}>
@@ -130,11 +140,11 @@ export default function AddTattooScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>TATTOO INFO</Text>
           <View style={styles.card}>
-            <FormField label="Name" required>
+            <FormField label="Name" required valid={step1Done}>
               <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g. Sleeve, Rose, Geometric" placeholderTextColor={COLORS.textMuted} />
             </FormField>
             <View style={styles.fieldDivider} />
-            <FormField label="Date Tattooed" required>
+            <FormField label="Date Tattooed" required valid={step2Done}>
               <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor={COLORS.textMuted} keyboardType="numbers-and-punctuation" />
             </FormField>
           </View>
@@ -219,10 +229,60 @@ export default function AddTattooScreen({ navigation }) {
   );
 }
 
-function FormField({ label, required, children }) {
+function FieldCheckmark({ valid }) {
+  const scale = useRef(new Animated.Value(0)).current;
+  const prevValid = useRef(false);
+  useEffect(() => {
+    if (valid && !prevValid.current) {
+      scale.setValue(0);
+      Animated.spring(scale, { toValue: 1, tension: 140, friction: 6, useNativeDriver: true }).start();
+    } else if (!valid) {
+      scale.setValue(0);
+    }
+    prevValid.current = valid;
+  }, [valid]);
+  if (!valid) return null;
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <View style={styles.fieldCheckmark}>
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>✓</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+function StepProgress({ steps, completed }) {
+  return (
+    <View style={styles.stepProgressWrap}>
+      {Array.from({ length: steps }, (_, i) => {
+        const done = i < completed;
+        return <StepDot key={i} done={done} />;
+      })}
+    </View>
+  );
+}
+
+function StepDot({ done }) {
+  const scale = useRef(new Animated.Value(done ? 1 : 0.7)).current;
+  const prevDone = useRef(done);
+  useEffect(() => {
+    if (done !== prevDone.current) {
+      Animated.spring(scale, { toValue: done ? 1 : 0.7, tension: 120, friction: 7, useNativeDriver: true }).start();
+      prevDone.current = done;
+    }
+  }, [done]);
+  return (
+    <Animated.View style={[styles.stepDot, done && styles.stepDotDone, { transform: [{ scale }] }]} />
+  );
+}
+
+function FormField({ label, required, valid, children }) {
   return (
     <View style={{ gap: 4 }}>
-      <Text style={styles.fieldLabel}>{label}{required ? ' *' : ''}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Text style={styles.fieldLabel}>{label}{required ? ' *' : ''}</Text>
+        <FieldCheckmark valid={!!valid} />
+      </View>
       {children}
     </View>
   );
@@ -255,6 +315,10 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
 
 const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 120 },
+  stepProgressWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: SPACING.lg, paddingTop: SPACING.xl },
+  stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.border },
+  stepDotDone: { backgroundColor: COLORS.accent, width: 24, borderRadius: 5 },
+  fieldCheckmark: { width: 16, height: 16, borderRadius: 8, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
   photoSection: { alignItems: 'center', paddingVertical: SPACING.xl },
   photoCircle: { width: 120, height: 120, borderRadius: 60, overflow: 'hidden' },
   photoCircleImage: { width: '100%', height: '100%' },

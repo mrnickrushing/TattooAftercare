@@ -7,7 +7,7 @@
  *  - Bug #7: updatePostReactionCount was opening a brand new SQLite connection on every
  *    reaction instead of using the shared singleton. Fixed to import and use getDB from socialDb.
  */
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Image, TextInput, KeyboardAvoidingView, Platform,
@@ -46,6 +46,49 @@ const REACTIONS = [
   { type: 'love', emoji: '❤️', label: 'Love' },
   { type: 'ink',  emoji: '💉', label: 'Ink'  },
 ];
+
+function SpringReactionPicker({ reactions, myReaction, onReact }) {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, { toValue: 1, tension: 130, friction: 7, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 120, useNativeDriver: true }),
+    ]).start();
+  }, []);
+  return (
+    <Animated.View style={[reactionPickerStyle, { transform: [{ scale: scaleAnim }], opacity: opacityAnim }]}>
+      {reactions.map((r) => (
+        <TouchableOpacity
+          key={r.type}
+          style={[reactionBtnStyle, myReaction === r.type && reactionBtnActiveStyle]}
+          onPress={() => onReact(r.type)}
+          activeOpacity={0.75}
+        >
+          <Text style={{ fontSize: 22 }}>{r.emoji}</Text>
+          <Text style={reactionLabelStyle}>{r.label}</Text>
+        </TouchableOpacity>
+      ))}
+    </Animated.View>
+  );
+}
+
+function AnimatedReactionCount({ value, style }) {
+  const animVal = useRef(new Animated.Value(value)).current;
+  const [display, setDisplay] = useState(value);
+  useEffect(() => {
+    const listener = animVal.addListener(({ value: v }) => setDisplay(Math.round(v)));
+    Animated.timing(animVal, { toValue: value, duration: 300, useNativeDriver: false }).start();
+    return () => animVal.removeListener(listener);
+  }, [value]);
+  return <Text style={style}>{display}</Text>;
+}
+
+// Inline styles for the spring picker (avoid StyleSheet reference before it's declared)
+const reactionPickerStyle = { flexDirection: 'row', padding: 8, gap: 8, justifyContent: 'center' };
+const reactionBtnStyle = { alignItems: 'center', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)', gap: 4 };
+const reactionBtnActiveStyle = { backgroundColor: 'rgba(200,169,81,0.18)' };
+const reactionLabelStyle = { color: '#999', fontSize: 11, fontWeight: '600' };
 
 export default function SocialFeedScreen({ navigation }) {
   const [posts, setPosts] = useState([]);
@@ -351,9 +394,7 @@ export default function SocialFeedScreen({ navigation }) {
                     accessibilityRole="button"
                   >
                     <Text style={styles.actionBtnEmoji}>{rxEmoji || '🔥'}</Text>
-                    <Text style={[styles.actionBtnText, myRx && styles.actionBtnTextActive]}>
-                      {post.reaction_count || 0}
-                    </Text>
+                    <AnimatedReactionCount value={post.reaction_count || 0} style={[styles.actionBtnText, myRx && styles.actionBtnTextActive]} />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -378,22 +419,11 @@ export default function SocialFeedScreen({ navigation }) {
 
                 {/* Reaction picker */}
                 {reactionPickerPost === post.id && (
-                  <View style={styles.reactionPicker}>
-                    {REACTIONS.map((r) => (
-                      <TouchableOpacity
-                        key={r.type}
-                        style={[
-                          styles.reactionBtn,
-                          myRx === r.type && styles.reactionBtnActive,
-                        ]}
-                        onPress={() => handleReact(post.id, r.type)}
-                        activeOpacity={0.75}
-                      >
-                        <Text style={styles.reactionEmoji}>{r.emoji}</Text>
-                        <Text style={styles.reactionLabel}>{r.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  <SpringReactionPicker
+                    reactions={REACTIONS}
+                    myReaction={myRx}
+                    onReact={(type) => handleReact(post.id, type)}
+                  />
                 )}
 
                 {/* Comments section */}
