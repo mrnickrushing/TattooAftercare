@@ -21,6 +21,8 @@ import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from '../constants/theme';
 import { TATTOO_STYLES, BODY_PARTS } from '../constants/tattooStyles';
 import { getExplorePosts } from '../database/exploreDb';
+import EmptyState from '../components/EmptyState';
+import ImageWithLoading from '../components/ImageWithLoading';
 
 const { width } = Dimensions.get('window');
 const CARD_SIZE = (width - SPACING.lg * 2 - SPACING.sm) / 2;
@@ -32,10 +34,9 @@ function FilterChip({ label, emoji, active, onPress }) {
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.75}
-      style={[
-        styles.chip,
-        active && styles.chipActive,
-      ]}
+      style={[styles.chip, active && styles.chipActive]}
+      accessibilityLabel={`${label} filter${active ? ', active' : ''}`}
+      accessibilityRole="button"
     >
       <Text style={styles.chipEmoji}>{emoji}</Text>
       <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>{label}</Text>
@@ -50,9 +51,15 @@ function ExploreCard({ post, onPress }) {
     : null;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={() => onPress(post)} activeOpacity={0.88}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => onPress(post)}
+      activeOpacity={0.88}
+      accessibilityLabel={`Post by ${post.username || 'user'}${post.style ? `, ${post.style} style` : ''}`}
+      accessibilityRole="button"
+    >
       {uri ? (
-        <Image source={{ uri }} style={styles.cardImage} resizeMode="cover" />
+        <ImageWithLoading source={{ uri }} style={styles.cardImage} resizeMode="cover" />
       ) : (
         <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
           <Text style={{ fontSize: 28 }}>💉</Text>
@@ -173,6 +180,8 @@ export default function ExploreScreen({ navigation }) {
           style={styles.filterToggle}
           onPress={() => setFilterMode((m) => (m === 'style' ? 'bodypart' : 'style'))}
           activeOpacity={0.75}
+          accessibilityLabel={`Switch to ${filterMode === 'style' ? 'body part' : 'style'} filter`}
+          accessibilityRole="button"
         >
           <Feather name="sliders" size={15} color={COLORS.accent} />
         </TouchableOpacity>
@@ -217,6 +226,10 @@ export default function ExploreScreen({ navigation }) {
         numColumns={2}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.grid}
+        removeClippedSubviews
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        initialNumToRender={10}
         renderItem={({ item }) => (
           <ExploreCard
             post={item}
@@ -244,13 +257,11 @@ export default function ExploreScreen({ navigation }) {
         }
         ListEmptyComponent={
           !refreshing ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🔍</Text>
-              <Text style={styles.emptyTitle}>No public posts yet</Text>
-              <Text style={styles.emptyBody}>
-                Posts you and others mark as Public will appear here.
-              </Text>
-            </View>
+            <EmptyState
+              icon="🔍"
+              title="No public posts yet"
+              body="Posts you and others mark as Public will appear here."
+            />
           ) : null
         }
         showsVerticalScrollIndicator={false}
@@ -322,8 +333,4 @@ const styles = StyleSheet.create({
   },
   cardStyleText: { color: COLORS.accent, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
   cardUsername: { color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: '600' },
-  emptyState: { alignItems: 'center', paddingTop: 80, gap: SPACING.md },
-  emptyIcon: { fontSize: 44 },
-  emptyTitle: { color: COLORS.textPrimary, fontSize: 17, fontWeight: '700' },
-  emptyBody: { color: COLORS.textMuted, fontSize: 13, textAlign: 'center', maxWidth: 260, lineHeight: 19 },
 });

@@ -10,6 +10,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import EmptyState from '../components/EmptyState';
 import { getFriendsLeaderboard } from '../database/exploreDb';
 import { getCurrentUser } from '../database/socialDb';
 
@@ -19,12 +20,11 @@ function LeaderboardRow({ entry, onPress }) {
   const medal = RANK_MEDALS[entry.rank];
   return (
     <TouchableOpacity
-      style={[
-        styles.row,
-        entry.isCurrentUser && styles.rowHighlighted,
-      ]}
+      style={[styles.row, entry.isCurrentUser && styles.rowHighlighted]}
       onPress={() => onPress && onPress(entry)}
       activeOpacity={0.85}
+      accessibilityLabel={`${entry.display_name || entry.username || 'User'}, rank ${entry.rank}, streak ${entry.care_streak || 0}`}
+      accessibilityRole="button"
     >
       {/* Rank */}
       <View style={styles.rankWrap}>
@@ -132,16 +132,18 @@ export default function FriendsLeaderboardScreen({ navigation }) {
           <Text style={styles.listHeader}>FRIENDS STREAK BOARD</Text>
         }
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🏆</Text>
-            <Text style={styles.emptyTitle}>No friends yet</Text>
-            <Text style={styles.emptyBody}>
-              Follow other users on the Explore tab to see their streaks here.
-            </Text>
-          </View>
+          <EmptyState
+            icon="🏆"
+            title="No friends yet"
+            body="Follow other users on the Explore tab to see their streaks here."
+          />
         }
         contentContainerStyle={entries.length === 0 ? styles.emptyContainer : { paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews
+        maxToRenderPerBatch={15}
+        windowSize={10}
+        initialNumToRender={15}
       />
     </View>
   );
@@ -198,8 +200,4 @@ const styles = StyleSheet.create({
   streakNumActive: { color: COLORS.accent },
   separator: { height: 1, backgroundColor: COLORS.border },
   emptyContainer: { flex: 1, justifyContent: 'center' },
-  emptyState: { alignItems: 'center', padding: SPACING.xxl, gap: SPACING.md },
-  emptyIcon: { fontSize: 44 },
-  emptyTitle: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '700' },
-  emptyBody: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
 });

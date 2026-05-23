@@ -7,10 +7,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Image, Dimensions, ScrollView, ActivityIndicator,
+  Dimensions, ScrollView, ActivityIndicator,
 } from 'react-native';
+import EmptyState from '../components/EmptyState';
 import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import ImageWithLoading from '../components/ImageWithLoading';
 import { getArtistData } from '../database/exploreDb';
 import { getStyleById } from '../constants/tattooStyles';
 
@@ -35,7 +37,7 @@ function PostThumb({ post }) {
   return (
     <View style={styles.thumb}>
       {uri ? (
-        <Image source={{ uri }} style={styles.thumbImage} resizeMode="cover" />
+        <ImageWithLoading source={{ uri }} style={styles.thumbImage} resizeMode="cover" />
       ) : (
         <View style={[styles.thumbImage, styles.thumbPlaceholder]}>
           <Text style={{ fontSize: 24 }}>💉</Text>
@@ -130,6 +132,9 @@ export default function ArtistProfileScreen({ route, navigation }) {
                 style={[styles.tab, tab === 'posts' && styles.tabActive]}
                 onPress={() => setTab('posts')}
                 activeOpacity={0.75}
+                accessibilityLabel="Posts tab"
+                accessibilityRole="tab"
+                accessibilityState={{ selected: tab === 'posts' }}
               >
                 <Feather name="grid" size={14} color={tab === 'posts' ? COLORS.accent : COLORS.textMuted} />
                 <Text style={[styles.tabLabel, tab === 'posts' && styles.tabLabelActive]}>Posts</Text>
@@ -138,6 +143,9 @@ export default function ArtistProfileScreen({ route, navigation }) {
                 style={[styles.tab, tab === 'tattoos' && styles.tabActive]}
                 onPress={() => setTab('tattoos')}
                 activeOpacity={0.75}
+                accessibilityLabel="Tattoos tab"
+                accessibilityRole="tab"
+                accessibilityState={{ selected: tab === 'tattoos' }}
               >
                 <Feather name="layers" size={14} color={tab === 'tattoos' ? COLORS.accent : COLORS.textMuted} />
                 <Text style={[styles.tabLabel, tab === 'tattoos' && styles.tabLabelActive]}>Tattoos</Text>
@@ -146,13 +154,17 @@ export default function ArtistProfileScreen({ route, navigation }) {
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🎨</Text>
-            <Text style={styles.emptyTitle}>No {tab} yet</Text>
-            <Text style={styles.emptyBody}>Public {tab} tagged with this artist will appear here.</Text>
-          </View>
+          <EmptyState
+            icon="🎨"
+            title={`No ${tab} yet`}
+            body={`Public ${tab} tagged with this artist will appear here.`}
+          />
         }
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        initialNumToRender={10}
       />
     </View>
   );
@@ -219,8 +231,4 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary, fontSize: 11, fontWeight: '600',
     padding: SPACING.xs,
   },
-  emptyState: { alignItems: 'center', paddingTop: SPACING.xxl, gap: SPACING.md },
-  emptyIcon: { fontSize: 44 },
-  emptyTitle: { color: COLORS.textPrimary, fontSize: 17, fontWeight: '700' },
-  emptyBody: { color: COLORS.textMuted, fontSize: 13, textAlign: 'center', maxWidth: 260, lineHeight: 19 },
 });

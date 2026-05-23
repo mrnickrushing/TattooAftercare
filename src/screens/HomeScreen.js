@@ -363,6 +363,8 @@ export default function HomeScreen({ navigation }) {
         style={[commonStyles.fab, { bottom: fabBottom }]}
         onPress={() => navigation.navigate('AddTattoo')}
         activeOpacity={0.85}
+        accessibilityLabel="Add tattoo"
+        accessibilityRole="button"
       >
         <Feather name="plus" size={24} color={COLORS.textInverse} />
       </TouchableOpacity>

@@ -11,6 +11,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import EmptyState from '../components/EmptyState';
 import {
   getNotifications, markAllNotificationsRead, getUnreadNotificationCount,
 } from '../database/socialDb';
@@ -88,7 +89,13 @@ export default function NotificationsScreen() {
     <View style={styles.container}>
       {/* Header actions */}
       {unread > 0 && (
-        <TouchableOpacity style={styles.markReadBtn} onPress={handleMarkAllRead} activeOpacity={0.75}>
+        <TouchableOpacity
+          style={styles.markReadBtn}
+          onPress={handleMarkAllRead}
+          activeOpacity={0.75}
+          accessibilityLabel={`Mark all ${unread} notifications as read`}
+          accessibilityRole="button"
+        >
           <Feather name="check-circle" size={14} color={COLORS.accent} />
           <Text style={styles.markReadText}>Mark all read ({unread})</Text>
         </TouchableOpacity>
@@ -103,14 +110,18 @@ export default function NotificationsScreen() {
         }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🔔</Text>
-            <Text style={styles.emptyTitle}>No notifications yet</Text>
-            <Text style={styles.emptyBody}>Activity from your healing milestones, badges, comments, and reactions will show up here.</Text>
-          </View>
+          <EmptyState
+            icon="🔔"
+            title="No notifications yet"
+            body="Activity from your healing milestones, badges, comments, and reactions will show up here."
+          />
         }
         contentContainerStyle={notifications.length === 0 ? styles.emptyContainer : { paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews
+        maxToRenderPerBatch={15}
+        windowSize={10}
+        initialNumToRender={15}
       />
     </View>
   );
@@ -144,8 +155,4 @@ const styles = StyleSheet.create({
   },
   separator: { height: 1, backgroundColor: COLORS.border },
   emptyContainer: { flex: 1, justifyContent: 'center' },
-  emptyState: { alignItems: 'center', padding: SPACING.xxl, gap: SPACING.md },
-  emptyIcon: { fontSize: 44 },
-  emptyTitle: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '700' },
-  emptyBody: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
 });
