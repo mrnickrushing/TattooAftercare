@@ -45,13 +45,16 @@ export async function registerForPushNotifications() {
   return token;
 }
 
+const DAILY_CARE_REMINDER_ID = 'daily_care_reminder';
+
 /**
  * Schedule daily care reminder at a given hour (default 9am).
  * Safe to call multiple times — cancels existing before rescheduling.
  */
 export async function scheduleDailyCareReminder(tattooName, hour = 9) {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  await Notifications.cancelScheduledNotificationAsync(DAILY_CARE_REMINDER_ID);
   await Notifications.scheduleNotificationAsync({
+    identifier: DAILY_CARE_REMINDER_ID,
     content: {
       title: '💧 Daily Care Reminder',
       body: `Time to care for "${tattooName}" — wash and moisturize!`,
