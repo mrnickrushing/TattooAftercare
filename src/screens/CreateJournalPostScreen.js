@@ -18,6 +18,7 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, SHADOWS, commonStyles } from '../constants/theme';
 import { getDayNumber } from '../utils/healingStages';
+import { shareToInstagram } from '../utils/instagram';
 import { addPost, getLocalPosts, getLocalUser } from '../database/socialDb';
 import { createJournalPost } from '../utils/journalPosts';
 import { checkAndAwardBadges } from '../utils/badgeEngine';
@@ -116,7 +117,31 @@ export default function CreateJournalPostScreen({ route, navigation }) {
         const allPosts = await getLocalPosts(100);
         await checkAndAwardBadges('post_created', { postCount: allPosts.length });
       } catch {}
-      navigation.goBack();
+
+      // Offer to share to Instagram after posting
+      if (photoUris.length > 0 || caption.trim()) {
+        Alert.alert(
+          'Post saved! 🎉',
+          'Share this healing update to Instagram?',
+          [
+            {
+              text: 'Share to Instagram',
+              onPress: () => {
+                shareToInstagram({
+                  imageUri: photoUris[0] || null,
+                  caption: caption.trim(),
+                  tattooName: tattoo?.name,
+                  dayNumber,
+                });
+                navigation.goBack();
+              },
+            },
+            { text: 'Not now', onPress: () => navigation.goBack() },
+          ]
+        );
+      } else {
+        navigation.goBack();
+      }
     } catch (e) {
       Alert.alert('Error', 'Could not save post. Please try again.');
     } finally {
