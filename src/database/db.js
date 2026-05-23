@@ -3,7 +3,7 @@ import { format, subDays, isToday, parseISO } from 'date-fns';
 
 let db = null;
 
-async function getDB() {
+export async function getDB() {
   if (!db) {
     db = await SQLite.openDatabaseAsync('tattoo_aftercare.db');
     await db.execAsync('PRAGMA journal_mode = WAL;');

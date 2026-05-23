@@ -6,14 +6,14 @@
  * Uses main-canonical table names:
  *   posts, follows, users_cache, tattoos
  */
-import { getDatabase } from './database';
+import { getDB } from './db';
 
 /**
  * Get public posts filtered by optional style and/or body_part tag.
  */
 export async function getExplorePosts({ style, bodyPart, limit = 30, offset = 0 } = {}) {
   try {
-    const db = await getDatabase();
+    const db = await getDB();
     let query = `
       SELECT p.*,
              u.username, u.avatar_uri, u.display_name,
@@ -40,7 +40,7 @@ export async function getExplorePosts({ style, bodyPart, limit = 30, offset = 0 
  */
 export async function getAllArtistNames() {
   try {
-    const db = await getDatabase();
+    const db = await getDB();
     const result = await db.getAllAsync(
       `SELECT DISTINCT artist_name FROM tattoos
        WHERE artist_name IS NOT NULL AND artist_name != ''
@@ -58,7 +58,7 @@ export async function getAllArtistNames() {
  */
 export async function getArtistData(artistName) {
   try {
-    const db = await getDatabase();
+    const db = await getDB();
     const tattoos = await db.getAllAsync(
       `SELECT t.*, u.username, u.display_name
        FROM tattoos t
@@ -100,7 +100,7 @@ export async function getArtistData(artistName) {
  */
 export async function getFriendsLeaderboard(currentUserId) {
   try {
-    const db = await getDatabase();
+    const db = await getDB();
     // Get followed user IDs
     const followRows = await db.getAllAsync(
       'SELECT following_id FROM follows WHERE follower_id = ? AND status = "accepted"',
@@ -134,7 +134,7 @@ export async function getFriendsLeaderboard(currentUserId) {
  */
 export async function getUserStylePassport(userId) {
   try {
-    const db = await getDatabase();
+    const db = await getDB();
     const result = await db.getAllAsync(
       `SELECT style, COUNT(*) AS count FROM tattoos
        WHERE user_id = ? AND style IS NOT NULL AND style != ''

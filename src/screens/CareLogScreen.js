@@ -142,7 +142,7 @@ export default function CareLogScreen({ navigation }) {
         <Text style={styles.emptyIcon}>\ud83d\udccb</Text>
         <Text style={styles.emptyTitle}>No active tattoos</Text>
         <Text style={styles.emptySubtitle}>Add a tattoo to start logging your care.</Text>
-        <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate('Home', { screen: 'AddTattoo' })}>
+        <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate('AddTattoo')}>
           <Text style={styles.emptyButtonText}>Add Tattoo</Text>
         </TouchableOpacity>
       </View>
