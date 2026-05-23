@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Alert, KeyboardAvoidingView, Platform, Image,
+  Animated, Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -15,6 +16,55 @@ import { checkAndAwardBadges } from '../utils/badgeEngine';
 import EmptyState from '../components/EmptyState';
 
 const today = format(new Date(), 'yyyy-MM-dd');
+
+function AnimatedWeekDot({ date, label, isToday, hasEntry, isPast, onLongPress }) {
+  const checkScale = useRef(new Animated.Value(hasEntry ? 1 : 0)).current;
+  const checkOpacity = useRef(new Animated.Value(hasEntry ? 1 : 0)).current;
+  const prevHasEntry = useRef(hasEntry);
+
+  useEffect(() => {
+    if (hasEntry && !prevHasEntry.current) {
+      Animated.parallel([
+        Animated.spring(checkScale, { toValue: 1, tension: 120, friction: 5, useNativeDriver: true }),
+        Animated.timing(checkOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+      ]).start();
+    } else if (!hasEntry) {
+      checkScale.setValue(0);
+      checkOpacity.setValue(0);
+    }
+    prevHasEntry.current = hasEntry;
+  }, [hasEntry]);
+
+  return (
+    <TouchableOpacity
+      style={styles.weekDay}
+      onLongPress={onLongPress}
+      activeOpacity={onLongPress ? 0.7 : 1}
+      disabled={!onLongPress}
+    >
+      <Text style={[styles.weekDayLabel, isToday && { color: COLORS.accent }]}>{label}</Text>
+      <View style={[
+        styles.weekDot,
+        isToday && styles.weekDotToday,
+        hasEntry && { backgroundColor: COLORS.accent },
+        !hasEntry && isPast && { backgroundColor: COLORS.danger + '44' },
+        isToday && {
+          shadowColor: COLORS.accent,
+          shadowOpacity: 0.55,
+          shadowRadius: 5,
+          shadowOffset: { width: 0, height: 0 },
+          elevation: 4,
+        },
+      ]}>
+        {hasEntry && (
+          <Animated.View style={{ transform: [{ scale: checkScale }], opacity: checkOpacity }}>
+            <Feather name="check" size={8} color={COLORS.textInverse} />
+          </Animated.View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 function getLast7Days() {
   return Array.from({ length: 7 }, (_, i) => {
@@ -35,6 +85,7 @@ export default function CareLogScreen({ navigation }) {
   const [weekLogs, setWeekLogs] = useState({});
   const [saving, setSaving] = useState(false);
   const [notesFocused, setNotesFocused] = useState(false);
+  const [peekedLog, setPeekedLog] = useState(null);
 
   const selectedTattoo = activeTattoos.find((t) => t.id === selectedId) || activeTattoos[0];
 
@@ -186,28 +237,44 @@ export default function CareLogScreen({ navigation }) {
             const hasEntry = !!logged;
             const isPast = date < today;
             return (
-              <View key={date} style={styles.weekDay}>
-                <Text style={[styles.weekDayLabel, isTd && { color: COLORS.accent }]}>{label}</Text>
-                <View style={[
-                  styles.weekDot,
-                  isTd && styles.weekDotToday,
-                  hasEntry && { backgroundColor: COLORS.accent },
-                  !hasEntry && isPast && { backgroundColor: COLORS.danger + '44' },
-                  // Glow on today dot
-                  isTd && {
-                    shadowColor: COLORS.accent,
-                    shadowOpacity: 0.55,
-                    shadowRadius: 5,
-                    shadowOffset: { width: 0, height: 0 },
-                    elevation: 4,
-                  },
-                ]}>
-                  {hasEntry && <Feather name="check" size={8} color={COLORS.textInverse} />}
-                </View>
-              </View>
+              <AnimatedWeekDot
+                key={date}
+                date={date}
+                label={label}
+                isToday={isTd}
+                hasEntry={hasEntry}
+                isPast={isPast}
+                onLongPress={isPast && hasEntry ? () => setPeekedLog(logged) : undefined}
+              />
             );
           })}
         </View>
+
+        {/* Peek modal for long-pressed past log */}
+        <Modal
+          visible={!!peekedLog}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPeekedLog(null)}
+        >
+          <TouchableOpacity style={styles.peekOverlay} activeOpacity={1} onPress={() => setPeekedLog(null)}>
+            <View style={styles.peekCard}>
+              <Text style={styles.peekDate}>{peekedLog?.log_date}</Text>
+              <View style={styles.peekRow}>
+                <Feather name="droplet" size={14} color={peekedLog?.washed ? COLORS.accent : COLORS.textMuted} />
+                <Text style={[styles.peekLabel, peekedLog?.washed && { color: COLORS.accent }]}>Washed</Text>
+                {peekedLog?.washed ? <Feather name="check-circle" size={14} color={COLORS.accent} /> : <Feather name="circle" size={14} color={COLORS.textMuted} />}
+              </View>
+              <View style={styles.peekRow}>
+                <Feather name="wind" size={14} color={peekedLog?.moisturized ? COLORS.accent : COLORS.textMuted} />
+                <Text style={[styles.peekLabel, peekedLog?.moisturized && { color: COLORS.accent }]}>Moisturized</Text>
+                {peekedLog?.moisturized ? <Feather name="check-circle" size={14} color={COLORS.accent} /> : <Feather name="circle" size={14} color={COLORS.textMuted} />}
+              </View>
+              {peekedLog?.notes ? <Text style={styles.peekNotes} numberOfLines={3}>{peekedLog.notes}</Text> : null}
+              <Text style={styles.peekDismiss}>Tap anywhere to close</Text>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* Health status */}
         <View style={[styles.statusBanner, { backgroundColor: sc.bg, borderColor: sc.border }]}>
@@ -416,6 +483,17 @@ const styles = StyleSheet.create({
     alignItems: 'center', ...SHADOWS.gold,
   },
   saveButtonText: { color: COLORS.textInverse, fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
+  peekOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
+  peekCard: {
+    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
+    padding: SPACING.xl, width: '80%', gap: SPACING.sm,
+    borderWidth: 1, borderColor: COLORS.borderGold,
+  },
+  peekDate: { color: COLORS.accent, fontSize: 13, fontWeight: '700', letterSpacing: 0.8, marginBottom: SPACING.xs },
+  peekRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  peekLabel: { color: COLORS.textSecondary, fontSize: 14, flex: 1, fontWeight: '500' },
+  peekNotes: { color: COLORS.textMuted, fontSize: 13, lineHeight: 18, marginTop: SPACING.xs },
+  peekDismiss: { color: COLORS.textMuted, fontSize: 11, textAlign: 'center', marginTop: SPACING.sm },
   journalPostButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
     marginHorizontal: SPACING.lg, marginTop: SPACING.md, marginBottom: SPACING.lg,

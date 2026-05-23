@@ -4,9 +4,10 @@
  * Also shows the Style Passport (styles collected so far).
  * Route: navigate('BadgeCabinet', { userId })
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, ActivityIndicator,
+  Animated, TouchableOpacity, Modal,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { getUserBadges as getEarnedBadges, BADGE_TYPES, BADGE_META } from '../database/socialDb';
@@ -17,29 +18,76 @@ const ALL_BADGES = Object.values(BADGE_TYPES);
 
 function BadgeTile({ badgeType, earned }) {
   const meta = BADGE_META[badgeType] || { icon: '🏅', label: badgeType, desc: '' };
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+
+  useEffect(() => {
+    if (!earned) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, { toValue: 1, duration: 1400, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 0, duration: 1400, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [earned]);
+
+  const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.55] });
+  const glowScale = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
+
   return (
-    <View style={[styles.badgeTile, earned ? styles.badgeTileEarned : styles.badgeTileLocked]}>
-      <Text style={[styles.badgeIcon, !earned && styles.badgeIconLocked]}>{meta.icon}</Text>
-      <Text style={[styles.badgeLabel, !earned && styles.badgeLabelLocked]} numberOfLines={2}>
-        {meta.label}
-      </Text>
-      {earned ? (
-        <View style={styles.earnedPip} />
-      ) : (
-        <Text style={styles.lockedText}>Locked</Text>
+    <>
+      <TouchableOpacity
+        onPress={!earned ? () => setTooltipVisible(true) : undefined}
+        activeOpacity={earned ? 1 : 0.75}
+        style={[styles.badgeTile, earned ? styles.badgeTileEarned : styles.badgeTileLocked]}
+      >
+        {earned && (
+          <Animated.View
+            style={[
+              styles.badgeGlow,
+              { opacity: glowOpacity, transform: [{ scale: glowScale }] },
+            ]}
+          />
+        )}
+        <Text style={[styles.badgeIcon, !earned && styles.badgeIconLocked]}>{meta.icon}</Text>
+        <Text style={[styles.badgeLabel, !earned && styles.badgeLabelLocked]} numberOfLines={2}>
+          {meta.label}
+        </Text>
+        {earned ? (
+          <View style={styles.earnedPip} />
+        ) : (
+          <Text style={styles.lockedText}>Tap to unlock</Text>
+        )}
+      </TouchableOpacity>
+
+      {tooltipVisible && (
+        <Modal transparent animationType="fade" onRequestClose={() => setTooltipVisible(false)}>
+          <TouchableOpacity style={styles.tooltipOverlay} activeOpacity={1} onPress={() => setTooltipVisible(false)}>
+            <View style={styles.tooltipCard}>
+              <Text style={styles.tooltipIcon}>{meta.icon}</Text>
+              <Text style={styles.tooltipTitle}>{meta.label}</Text>
+              <Text style={styles.tooltipDesc}>{meta.desc || 'Keep caring for your tattoos to unlock this badge.'}</Text>
+              <Text style={styles.tooltipClose}>Tap anywhere to close</Text>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       )}
-    </View>
+    </>
   );
 }
 
-function StylePassportRow({ entry }) {
+function StylePassportRow({ entry, animValue }) {
   const meta = getStyleById(entry.style);
+  const targetFraction = Math.min(entry.count * 0.2, 1);
+  const width = animValue.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${targetFraction * 100}%`] });
   return (
     <View style={styles.passportRow}>
       <Text style={styles.passportEmoji}>{meta.emoji}</Text>
       <Text style={styles.passportLabel}>{meta.label}</Text>
       <View style={styles.passportBar}>
-        <View style={[styles.passportFill, { width: `${Math.min(entry.count * 20, 100)}%` }]} />
+        <Animated.View style={[styles.passportFill, { width }]} />
       </View>
       <Text style={styles.passportCount}>{entry.count}</Text>
     </View>
@@ -75,6 +123,29 @@ export default function BadgeCabinetScreen({ route }) {
 
   const earnedCount = earnedBadges.length;
   const total = ALL_BADGES.length;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: total > 0 ? earnedCount / total : 0,
+      duration: 900,
+      delay: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [earnedCount, total]);
+
+  const passportProgressAnim = useRef(new Animated.Value(0)).current;
+
+  const animatePassportBars = useCallback(() => {
+    Animated.timing(passportProgressAnim, {
+      toValue: 1,
+      duration: 700,
+      delay: 400,
+      useNativeDriver: false,
+    }).start();
+  }, []);
+
+  useEffect(() => { if (passport.length > 0) animatePassportBars(); }, [passport]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -86,7 +157,7 @@ export default function BadgeCabinetScreen({ route }) {
           <Text style={styles.progressTotal}> / {total}</Text>
         </Text>
         <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: `${(earnedCount / total) * 100}%` }]} />
+          <Animated.View style={[styles.progressBarFill, { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
         </View>
       </View>
 
@@ -105,7 +176,7 @@ export default function BadgeCabinetScreen({ route }) {
           <Text style={styles.passportSubtitle}>Styles you've collected across your tattoos</Text>
           <View style={styles.passportList}>
             {passport.map((entry) => (
-              <StylePassportRow key={entry.style} entry={entry} />
+              <StylePassportRow key={entry.style} entry={entry} animValue={passportProgressAnim} />
             ))}
           </View>
           {passport.length < 3 && (
@@ -154,7 +225,22 @@ const styles = StyleSheet.create({
     alignItems: 'center', gap: SPACING.xs,
   },
   badgeTileEarned: { borderColor: COLORS.borderGold, ...SHADOWS.card },
-  badgeTileLocked: { borderColor: COLORS.border, opacity: 0.45 },
+  badgeTileLocked: { borderColor: COLORS.border, opacity: 0.55 },
+  badgeGlow: {
+    position: 'absolute', top: -4, left: -4, right: -4, bottom: -4,
+    borderRadius: RADIUS.lg + 4,
+    backgroundColor: COLORS.accent,
+  },
+  tooltipOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' },
+  tooltipCard: {
+    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
+    padding: SPACING.xl, width: '78%', alignItems: 'center', gap: SPACING.sm,
+    borderWidth: 1, borderColor: COLORS.borderGold,
+  },
+  tooltipIcon: { fontSize: 40, marginBottom: SPACING.xs },
+  tooltipTitle: { color: COLORS.textPrimary, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  tooltipDesc: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 19, textAlign: 'center' },
+  tooltipClose: { color: COLORS.textMuted, fontSize: 11, marginTop: SPACING.sm },
   badgeIcon: { fontSize: 30 },
   badgeIconLocked: { opacity: 0.4 },
   badgeLabel: {
