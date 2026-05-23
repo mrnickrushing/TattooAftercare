@@ -29,6 +29,7 @@ import BadgeCabinetScreen from '../screens/BadgeCabinetScreen';
 import FriendsLeaderboardScreen from '../screens/FriendsLeaderboardScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import HealingTimelineScreen from '../screens/HealingTimelineScreen';
+import InstagramLoginScreen from '../screens/InstagramLoginScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -111,6 +112,7 @@ function ProfileStack() {
       <Stack.Screen name="BadgeCabinet" component={BadgeCabinetScreen} options={{ title: 'Badges & Achievements' }} />
       <Stack.Screen name="FriendsLeaderboard" component={FriendsLeaderboardScreen} options={{ title: 'Leaderboard' }} />
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notification Settings' }} />
+      <Stack.Screen name="InstagramLogin" component={InstagramLoginScreen} options={{ title: 'Connect Instagram', presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }

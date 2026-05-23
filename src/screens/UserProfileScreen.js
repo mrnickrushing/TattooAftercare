@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { openInstagramProfile } from '../utils/instagram';
 import {
   getLocalUser, saveLocalUser,
   getLocalPostsByUser,
@@ -36,7 +37,7 @@ export default function UserProfileScreen({ route, navigation }) {
   const [posts, setPosts] = useState([]);
   const [badges, setBadges] = useState([]);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ username: '', display_name: '', bio: '' });
+  const [form, setForm] = useState({ username: '', display_name: '', bio: '', instagram_handle: '' });
 
   const load = useCallback(async () => {
     const localUser = await getLocalUser();
@@ -69,7 +70,7 @@ export default function UserProfileScreen({ route, navigation }) {
     setUser(profileUser);
 
     if (profileUser) {
-      setForm({ username: profileUser.username || '', display_name: profileUser.display_name || '', bio: profileUser.bio || '' });
+      setForm({ username: profileUser.username || '', display_name: profileUser.display_name || '', bio: profileUser.bio || '', instagram_handle: profileUser.instagram_handle || '' });
       const p = await getLocalPostsByUser(targetId || profileUser.id);
       setPosts(p);
     }
@@ -206,6 +207,19 @@ export default function UserProfileScreen({ route, navigation }) {
             placeholderTextColor={COLORS.textMuted}
             multiline
           />
+          <Text style={styles.fieldLabel}>INSTAGRAM HANDLE</Text>
+          <View style={styles.igInputRow}>
+            <Feather name="instagram" size={16} color={COLORS.textMuted} style={{ marginRight: 6 }} />
+            <TextInput
+              style={[styles.input, styles.igInput]}
+              value={form.instagram_handle}
+              onChangeText={(v) => setForm((f) => ({ ...f, instagram_handle: v.replace(/^@/, '') }))}
+              placeholder="yourhandle"
+              placeholderTextColor={COLORS.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
             <Text style={styles.saveBtnText}>Save Changes</Text>
           </TouchableOpacity>
@@ -224,12 +238,35 @@ export default function UserProfileScreen({ route, navigation }) {
           {user?.bio ? (
             <Text style={styles.bio}>{user.bio}</Text>
           ) : null}
+          {user?.instagram_handle ? (
+            <TouchableOpacity
+              style={styles.igHandleRow}
+              onPress={() => openInstagramProfile(user.instagram_handle)}
+              activeOpacity={0.7}
+              accessibilityLabel={`Open @${user.instagram_handle} on Instagram`}
+              accessibilityRole="link"
+            >
+              <Feather name="instagram" size={14} color="#C13584" />
+              <Text style={styles.igHandle}>@{user.instagram_handle}</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       )}
 
       {/* Quick links (own profile only) */}
       {isOwnProfile && (
         <View style={styles.quickLinks}>
+          <TouchableOpacity
+            style={[styles.quickLinkBtn, styles.quickLinkBtnIg]}
+            onPress={user?.instagram_handle
+              ? () => openInstagramProfile(user.instagram_handle)
+              : () => setEditing(true)}
+            activeOpacity={0.8}
+            accessibilityLabel={user?.instagram_handle ? `Open @${user.instagram_handle} on Instagram` : 'Add Instagram handle'}
+          >
+            <Feather name="instagram" size={20} color="#C13584" />
+            <Text style={styles.quickLinkText}>{user?.instagram_handle ? 'Instagram' : 'Add IG'}</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.quickLinkBtn}
             onPress={() => navigation.navigate('BadgeCabinet', { userId: user?.id })}
@@ -335,6 +372,11 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md, alignItems: 'center', marginTop: SPACING.sm,
   },
   saveBtnText: { color: COLORS.textInverse, fontSize: 14, fontWeight: '700' },
+  igHandleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+  igHandle: { color: '#C13584', fontSize: 13, fontWeight: '600' },
+  igInputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: SPACING.md },
+  igInput: { flex: 1, borderWidth: 0, borderRadius: 0, paddingHorizontal: 0 },
+  quickLinkBtnIg: { borderColor: '#C1358433' },
   bioSection: { gap: SPACING.xs, alignItems: 'center' },
   displayName: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '700' },
   usernameHandle: { color: COLORS.textMuted, fontSize: 13 },

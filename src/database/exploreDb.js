@@ -81,12 +81,15 @@ export async function getArtistData(artistName) {
       if (t.style) acc[t.style] = (acc[t.style] || 0) + 1;
       return acc;
     }, {});
+    // Pick the instagram handle from the first tattoo that has one
+    const instagramHandle = (tattoos || []).find((t) => t.artist_instagram)?.artist_instagram || null;
     return {
       artistName,
       tattoos: tattoos || [],
       posts: posts || [],
       styleBreakdown,
       totalWorks: (tattoos || []).length,
+      instagramHandle,
     };
   } catch (e) {
     console.error('getArtistData:', e);

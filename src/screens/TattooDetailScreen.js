@@ -14,6 +14,7 @@ import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, commonStyles } from '../consta
 import { getTattooById, getCareLogsForTattoo, getPhotosForTattoo, deleteTattoo, addPhoto, updateTattoo } from '../database/db';
 import { getStage, getStageInfo, isHealed, getDayNumber } from '../utils/healingStages';
 import { getJournalPostsForTattoo } from '../utils/journalPosts';
+import { openInstagramProfile, shareToInstagram } from '../utils/instagram';
 import HealingProgressBar from '../components/HealingProgressBar';
 import PhotoComparisonSlider from '../components/PhotoComparisonSlider';
 import ShareableCard from '../components/ShareableCard';
@@ -207,10 +208,17 @@ export default function TattooDetailScreen({ route, navigation }) {
         </View>
 
         {tattoo.artist_instagram && (
-          <View style={styles.instagramRow}>
+          <TouchableOpacity
+            style={styles.instagramRow}
+            onPress={() => openInstagramProfile(tattoo.artist_instagram)}
+            activeOpacity={0.7}
+            accessibilityLabel={`Open @${tattoo.artist_instagram} on Instagram`}
+            accessibilityRole="link"
+          >
             <Feather name="instagram" size={14} color={COLORS.accent} />
             <Text style={styles.instagramText}>@{tattoo.artist_instagram}</Text>
-          </View>
+            <Feather name="external-link" size={11} color={COLORS.accentDim} />
+          </TouchableOpacity>
         )}
 
         {/* Progress */}
@@ -375,6 +383,23 @@ export default function TattooDetailScreen({ route, navigation }) {
               <Text style={styles.actionButtonText}>{sharing ? 'Preparing...' : 'Share Portfolio Card'}</Text>
             </TouchableOpacity>
           )}
+
+          {/* Share healing update to Instagram */}
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonInstagram]}
+            onPress={() => shareToInstagram({
+              imageUri: finalPhotoUri,
+              tattooName: tattoo.name,
+              dayNumber: day,
+              handle: tattoo.artist_instagram,
+            })}
+            activeOpacity={0.85}
+            accessibilityLabel="Share healing update to Instagram"
+            accessibilityRole="button"
+          >
+            <Feather name="instagram" size={16} color="#fff" />
+            <Text style={styles.actionButtonText}>Share to Instagram</Text>
+          </TouchableOpacity>
         </View>
       </Animated.ScrollView>
 
@@ -503,6 +528,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: COLORS.accentBorder,
+  },
+  actionButtonInstagram: {
+    backgroundColor: '#C13584',
   },
   actionButtonText: { color: COLORS.textInverse, fontSize: 15, fontWeight: '700' },
   actionButtonOutlineText: { color: COLORS.accent, fontSize: 15, fontWeight: '600' },

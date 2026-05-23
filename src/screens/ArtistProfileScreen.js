@@ -7,8 +7,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Dimensions, ScrollView, ActivityIndicator,
+  Dimensions, ScrollView, ActivityIndicator, Share,
 } from 'react-native';
+import { openInstagramProfile } from '../utils/instagram';
 import EmptyState from '../components/EmptyState';
 import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
@@ -96,6 +97,22 @@ export default function ArtistProfileScreen({ route, navigation }) {
               </View>
               <Text style={styles.artistName}>{artistName}</Text>
               <Text style={styles.artistSubtitle}>Tattoo Artist</Text>
+
+              {/* Instagram deep link button */}
+              {data?.instagramHandle && (
+                <TouchableOpacity
+                  style={styles.igBtn}
+                  onPress={() => openInstagramProfile(data.instagramHandle)}
+                  activeOpacity={0.75}
+                  accessibilityLabel={`Open @${data.instagramHandle} on Instagram`}
+                  accessibilityRole="link"
+                >
+                  <Feather name="instagram" size={15} color="#fff" />
+                  <Text style={styles.igBtnText}>@{data.instagramHandle}</Text>
+                  <Feather name="external-link" size={11} color="rgba(255,255,255,0.6)" />
+                </TouchableOpacity>
+              )}
+
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={styles.statNumber}>{data?.totalWorks || 0}</Text>
@@ -186,6 +203,13 @@ const styles = StyleSheet.create({
   avatarInitial: { color: COLORS.accent, fontSize: 32, fontWeight: '800' },
   artistName: { color: COLORS.textPrimary, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
   artistSubtitle: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600', letterSpacing: 1 },
+  igBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.xs,
+    backgroundColor: '#C13584', borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  igBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   statsRow: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.sm },
   statItem: { flex: 1, alignItems: 'center', gap: 2 },
   statNumber: { color: COLORS.accent, fontSize: 20, fontWeight: '800' },

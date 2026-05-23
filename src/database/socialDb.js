@@ -60,6 +60,7 @@ export async function initSocialDB() {
       display_name TEXT,
       bio TEXT,
       avatar_uri TEXT,
+      instagram_handle TEXT,
       tattoo_count INTEGER DEFAULT 0,
       follower_count INTEGER DEFAULT 0,
       following_count INTEGER DEFAULT 0,
@@ -180,6 +181,11 @@ export async function initSocialDB() {
   try {
     await database.execAsync('ALTER TABLE posts ADD COLUMN artist_tag TEXT');
   } catch { /* column already exists */ }
+
+  // Migration guard: add instagram_handle to local_user if missing
+  try {
+    await database.execAsync('ALTER TABLE local_user ADD COLUMN instagram_handle TEXT');
+  } catch { /* column already exists */ }
 }
 
 // ─── Local user ──────────────────────────────────────────────────────────────
@@ -200,6 +206,7 @@ export async function saveLocalUser(user) {
     display_name: user.display_name || null,
     bio: user.bio || null,
     avatar_uri: user.avatar_uri || null,
+    instagram_handle: user.instagram_handle ? user.instagram_handle.replace(/^@/, '') : null,
     tattoo_count: user.tattoo_count || 0,
     follower_count: user.follower_count || 0,
     following_count: user.following_count || 0,
@@ -210,15 +217,16 @@ export async function saveLocalUser(user) {
   };
   await database.runAsync(
     `INSERT INTO local_user
-       (id, username, display_name, bio, avatar_uri,
+       (id, username, display_name, bio, avatar_uri, instagram_handle,
         tattoo_count, follower_count, following_count,
         care_streak, total_care_logs, badges_earned, created_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
      ON CONFLICT(id) DO UPDATE SET
        username = excluded.username,
        display_name = excluded.display_name,
        bio = excluded.bio,
        avatar_uri = excluded.avatar_uri,
+       instagram_handle = excluded.instagram_handle,
        tattoo_count = excluded.tattoo_count,
        follower_count = excluded.follower_count,
        following_count = excluded.following_count,
@@ -227,7 +235,8 @@ export async function saveLocalUser(user) {
        badges_earned = excluded.badges_earned`,
     [
       toSave.id, toSave.username, toSave.display_name, toSave.bio,
-      toSave.avatar_uri, toSave.tattoo_count, toSave.follower_count,
+      toSave.avatar_uri, toSave.instagram_handle,
+      toSave.tattoo_count, toSave.follower_count,
       toSave.following_count, toSave.care_streak, toSave.total_care_logs,
       toSave.badges_earned, toSave.created_at,
     ]
