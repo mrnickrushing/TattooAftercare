@@ -10,6 +10,7 @@ import { AppProvider } from './src/context/AppContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { SocialProvider } from './src/context/SocialContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import { COLORS } from './src/constants/theme';
 import { REVENUECAT_API_KEY_IOS, REVENUECAT_API_KEY_ANDROID } from './src/config';
 
@@ -70,7 +71,9 @@ export default function App() {
               }}
             >
               <StatusBar style="light" />
-              <AppNavigator />
+              <ErrorBoundary>
+                <AppNavigator />
+              </ErrorBoundary>
             </NavigationContainer>
           </AppProvider>
         </SocialProvider>

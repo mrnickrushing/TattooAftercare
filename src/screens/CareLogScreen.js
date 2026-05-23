@@ -12,6 +12,7 @@ import { useApp } from '../context/AppContext';
 import { isHealed, getStage, calculateHealthStatus } from '../utils/healingStages';
 import { getCareLogForDate, addCareLog, updateCareLog, getCareLogsForTattoo, addPhoto, getTattoos, getStreak } from '../database/db';
 import { checkAndAwardBadges } from '../utils/badgeEngine';
+import EmptyState from '../components/EmptyState';
 
 const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -139,12 +140,12 @@ export default function CareLogScreen({ navigation }) {
   if (activeTattoos.length === 0) {
     return (
       <View style={[commonStyles.container, styles.center]}>
-        <Text style={styles.emptyIcon}>\ud83d\udccb</Text>
-        <Text style={styles.emptyTitle}>No active tattoos</Text>
-        <Text style={styles.emptySubtitle}>Add a tattoo to start logging your care.</Text>
-        <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate('AddTattoo')}>
-          <Text style={styles.emptyButtonText}>Add Tattoo</Text>
-        </TouchableOpacity>
+        <EmptyState
+          icon="\ud83d\udccb"
+          title="No active tattoos"
+          body="Add a tattoo to start logging your care."
+          action={{ label: 'Add Tattoo', onPress: () => navigation.navigate('AddTattoo') }}
+        />
       </View>
     );
   }
@@ -251,7 +252,13 @@ export default function CareLogScreen({ navigation }) {
         {/* Photo */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>TODAY'S PHOTO</Text>
-          <TouchableOpacity style={styles.photoRow} onPress={handlePickPhoto} activeOpacity={0.75}>
+          <TouchableOpacity
+            style={styles.photoRow}
+            onPress={handlePickPhoto}
+            activeOpacity={0.75}
+            accessibilityLabel={photo ? 'Change photo' : 'Add photo'}
+            accessibilityRole="button"
+          >
             {photo ? (
               <Image source={{ uri: photo }} style={styles.photoThumb} />
             ) : (
@@ -280,7 +287,12 @@ export default function CareLogScreen({ navigation }) {
         {/* Save */}
         <TouchableOpacity
           style={[styles.saveButton, saving && { opacity: 0.6 }]}
-          onPress={handleSave} disabled={saving} activeOpacity={0.85}
+          onPress={handleSave}
+          disabled={saving}
+          activeOpacity={0.85}
+          accessibilityLabel={saving ? 'Saving care log' : existingLogId ? 'Update care log' : 'Save care log'}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: saving }}
         >
           <Text style={styles.saveButtonText}>{saving ? 'Saving...' : existingLogId ? 'Update Log' : 'Save Log'}</Text>
         </TouchableOpacity>
@@ -305,7 +317,11 @@ function ToggleButton({ label, icon, active, onPress }) {
   return (
     <TouchableOpacity
       style={[styles.toggleBtn, active && styles.toggleBtnActive]}
-      onPress={onPress} activeOpacity={0.75}
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityLabel={`${label}${active ? ', done' : ', not done'}`}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: active }}
     >
       <Feather name={icon} size={18} color={active ? COLORS.textInverse : COLORS.textMuted} />
       <Text style={[styles.toggleBtnText, active && styles.toggleBtnTextActive]}>{label}</Text>
@@ -315,7 +331,14 @@ function ToggleButton({ label, icon, active, onPress }) {
 
 function CheckboxItem({ label, checked, onPress, danger }) {
   return (
-    <TouchableOpacity style={styles.checkRow} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.checkRow}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityLabel={label}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+    >
       <View style={[
         styles.checkbox,
         checked && { backgroundColor: danger ? COLORS.danger : COLORS.accent, borderColor: danger ? COLORS.danger : COLORS.accent },
@@ -393,11 +416,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', ...SHADOWS.gold,
   },
   saveButtonText: { color: COLORS.textInverse, fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
-  emptyIcon: { fontSize: 48, marginBottom: SPACING.md },
-  emptyTitle: { ...FONTS.headingLarge, textAlign: 'center', marginBottom: SPACING.sm },
-  emptySubtitle: { ...FONTS.body, textAlign: 'center', marginBottom: SPACING.xl },
-  emptyButton: { backgroundColor: COLORS.accent, borderRadius: RADIUS.md, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl, ...SHADOWS.gold },
-  emptyButtonText: { color: COLORS.textInverse, fontSize: 14, fontWeight: '700' },
   journalPostButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
     marginHorizontal: SPACING.lg, marginTop: SPACING.md, marginBottom: SPACING.lg,

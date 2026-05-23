@@ -17,6 +17,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import EmptyState from '../components/EmptyState';
+import ImageWithLoading from '../components/ImageWithLoading';
 import {
   getLocalPosts, deleteLocalPost,
   saveCommentLocal, getCommentsForPost, deleteCommentLocal,
@@ -226,23 +228,20 @@ export default function SocialFeedScreen({ navigation }) {
   if (posts.length === 0) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Text style={styles.emptyIcon}>💉</Text>
-        <Text style={styles.emptyTitle}>Your feed is empty</Text>
-        <Text style={styles.emptyBody}>
-          Posts from the people you follow will appear here.
-        </Text>
-        <TouchableOpacity
-          style={styles.findFriendsBtn}
-          // Bug #2 fix: navigate to ExploreTab from a cross-stack context
-          onPress={() => navigation.getParent()?.navigate('ExploreTab')}
-          activeOpacity={0.85}
+        <EmptyState
+          icon="💉"
+          title="Your feed is empty"
+          body="Posts from the people you follow will appear here."
+          action={{
+            label: 'Find Friends in Explore',
+            // Bug #2 fix: navigate to ExploreTab from a cross-stack context
+            onPress: () => navigation.getParent()?.navigate('ExploreTab'),
+          }}
         >
-          <Feather name="compass" size={15} color={COLORS.textInverse} />
-          <Text style={styles.findFriendsBtnText}>Find Friends in Explore</Text>
-        </TouchableOpacity>
-        <Text style={styles.emptyHint}>
-          Or open a tattoo → Add Journal Post to share your own healing story.
-        </Text>
+          <Text style={styles.emptyHint}>
+            Or open a tattoo → Add Journal Post to share your own healing story.
+          </Text>
+        </EmptyState>
       </View>
     );
   }
@@ -257,6 +256,10 @@ export default function SocialFeedScreen({ navigation }) {
         data={posts}
         keyExtractor={(p) => p.id}
         contentContainerStyle={styles.list}
+        removeClippedSubviews
+        maxToRenderPerBatch={8}
+        windowSize={8}
+        initialNumToRender={6}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />
         }
@@ -277,6 +280,8 @@ export default function SocialFeedScreen({ navigation }) {
               activeOpacity={0.98}
               onLongPress={() => handleLongPressPost(post)}
               delayLongPress={600}
+              accessibilityLabel={`Post by ${post.username || 'user'}${post.caption ? `: ${post.caption.slice(0, 60)}` : ''}`}
+              accessibilityRole="button"
             >
               <View style={styles.postCard}>
                 {/* Header */}
@@ -313,7 +318,7 @@ export default function SocialFeedScreen({ navigation }) {
 
                 {/* Photos */}
                 {post.photo_uris?.length > 0 && (
-                  <Image
+                  <ImageWithLoading
                     source={{ uri: post.photo_uris[0] }}
                     style={styles.postImage}
                     resizeMode="cover"
@@ -342,6 +347,8 @@ export default function SocialFeedScreen({ navigation }) {
                       setReactionPickerPost((prev) => (prev === post.id ? null : post.id))
                     }
                     activeOpacity={0.75}
+                    accessibilityLabel={`React to post, ${post.reaction_count || 0} reactions`}
+                    accessibilityRole="button"
                   >
                     <Text style={styles.actionBtnEmoji}>{rxEmoji || '🔥'}</Text>
                     <Text style={[styles.actionBtnText, myRx && styles.actionBtnTextActive]}>
@@ -353,6 +360,8 @@ export default function SocialFeedScreen({ navigation }) {
                     style={styles.actionBtn}
                     onPress={() => toggleComments(post.id)}
                     activeOpacity={0.75}
+                    accessibilityLabel={`${expandedComments[post.id] ? 'Hide' : 'Show'} comments, ${post.comment_count || 0} comments`}
+                    accessibilityRole="button"
                   >
                     <Feather name="message-circle" size={18} color={COLORS.textMuted} />
                     <Text style={styles.actionBtnText}>{post.comment_count || 0}</Text>
@@ -538,16 +547,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   centered: { alignItems: 'center', justifyContent: 'center', gap: SPACING.md },
   list: { paddingBottom: 120 },
-  emptyIcon: { fontSize: 48 },
-  emptyTitle: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '700', marginTop: SPACING.sm },
-  emptyBody: { color: COLORS.textMuted, fontSize: 13, textAlign: 'center', maxWidth: 260, lineHeight: 19 },
-  findFriendsBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    marginTop: SPACING.lg, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl,
-    backgroundColor: COLORS.accent, borderRadius: RADIUS.full, ...SHADOWS.gold,
-  },
-  findFriendsBtnText: { color: COLORS.textInverse, fontSize: 14, fontWeight: '700' },
-  emptyHint: { color: COLORS.textMuted, fontSize: 12, textAlign: 'center', maxWidth: 240, lineHeight: 18, marginTop: SPACING.md },
+  emptyHint: { color: COLORS.textMuted, fontSize: 12, textAlign: 'center', maxWidth: 240, lineHeight: 18 },
   postCard: {
     backgroundColor: COLORS.card,
     marginHorizontal: SPACING.lg,
