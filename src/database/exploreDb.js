@@ -15,6 +15,15 @@ function normalizeStyle(value) {
     .replace(/[^a-z0-9]/g, '');
 }
 
+async function tableHasColumn(db, tableName, columnName) {
+  try {
+    const columns = await db.getAllAsync(`PRAGMA table_info(${tableName})`);
+    return (columns || []).some((column) => column.name === columnName);
+  } catch {
+    return false;
+  }
+}
+
 const BODY_PART_MATCHES = {
   arm: ['arm', 'bicep', 'forearm', 'wrist'],
   forearm: ['forearm'],
@@ -95,14 +104,23 @@ export async function getAllArtistNames() {
 export async function getArtistData(artistName) {
   try {
     const db = await getDB();
-    const tattoos = await db.getAllAsync(
-      `SELECT t.*, u.username, u.display_name
-       FROM tattoos t
-       LEFT JOIN users_cache u ON t.user_id = u.id
-       WHERE t.artist_name = ?
-       ORDER BY t.date_tattooed DESC`,
-      [artistName]
-    );
+    const hasUserId = await tableHasColumn(db, 'tattoos', 'user_id');
+    const tattoos = hasUserId
+      ? await db.getAllAsync(
+          `SELECT t.*, u.username, u.display_name
+           FROM tattoos t
+           LEFT JOIN users_cache u ON t.user_id = u.id
+           WHERE t.artist_name = ?
+           ORDER BY t.date_tattooed DESC`,
+          [artistName]
+        )
+      : await db.getAllAsync(
+          `SELECT t.*
+           FROM tattoos t
+           WHERE t.artist_name = ?
+           ORDER BY t.date_tattooed DESC`,
+          [artistName]
+        );
     const posts = await db.getAllAsync(
       `SELECT p.*, u.username, u.avatar_uri,
               t.name AS tattoo_name, t.style, t.placement AS body_part
@@ -170,12 +188,19 @@ export async function getFriendsLeaderboard(currentUserId) {
 export async function getUserStylePassport(userId) {
   try {
     const db = await getDB();
-    const result = await db.getAllAsync(
-      `SELECT style, COUNT(*) AS count FROM tattoos
-       WHERE user_id = ? AND style IS NOT NULL AND style != ''
-       GROUP BY style ORDER BY count DESC`,
-      [userId]
-    );
+    const hasUserId = await tableHasColumn(db, 'tattoos', 'user_id');
+    const result = hasUserId && userId
+      ? await db.getAllAsync(
+          `SELECT style, COUNT(*) AS count FROM tattoos
+           WHERE user_id = ? AND style IS NOT NULL AND style != ''
+           GROUP BY style ORDER BY count DESC`,
+          [userId]
+        )
+      : await db.getAllAsync(
+          `SELECT style, COUNT(*) AS count FROM tattoos
+           WHERE style IS NOT NULL AND style != ''
+           GROUP BY style ORDER BY count DESC`
+        );
     return result || [];
   } catch (e) {
     console.error('getUserStylePassport:', e);
