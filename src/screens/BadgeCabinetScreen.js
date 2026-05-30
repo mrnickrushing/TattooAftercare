@@ -31,7 +31,7 @@ function BadgeTile({ badgeType, earned }) {
     );
     loop.start();
     return () => loop.stop();
-  }, [earned]);
+  }, [earned, glowAnim]);
 
   const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.55] });
   const glowScale = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
@@ -99,42 +99,11 @@ export default function BadgeCabinetScreen({ route }) {
   const [earnedBadges, setEarnedBadges] = useState([]);
   const [passport, setPassport] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const [badges, styles] = await Promise.all([
-        getEarnedBadges(userId),
-        getUserStylePassport(userId),
-      ]);
-      setEarnedBadges(badges.map((b) => b.badge_type));
-      setPassport(styles);
-      setLoading(false);
-    })();
-  }, [userId]);
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator color={COLORS.accent} size="large" />
-      </View>
-    );
-  }
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const passportProgressAnim = useRef(new Animated.Value(0)).current;
 
   const earnedCount = earnedBadges.length;
   const total = ALL_BADGES.length;
-  const progressAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(progressAnim, {
-      toValue: total > 0 ? earnedCount / total : 0,
-      duration: 900,
-      delay: 200,
-      useNativeDriver: false,
-    }).start();
-  }, [earnedCount, total]);
-
-  const passportProgressAnim = useRef(new Animated.Value(0)).current;
 
   const animatePassportBars = useCallback(() => {
     Animated.timing(passportProgressAnim, {
@@ -143,9 +112,45 @@ export default function BadgeCabinetScreen({ route }) {
       delay: 400,
       useNativeDriver: false,
     }).start();
-  }, []);
+  }, [passportProgressAnim]);
 
-  useEffect(() => { if (passport.length > 0) animatePassportBars(); }, [passport]);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      const [badges, styles] = await Promise.all([
+        getEarnedBadges(userId),
+        getUserStylePassport(userId),
+      ]);
+      if (!mounted) return;
+      setEarnedBadges((badges || []).map((b) => b.badge_type));
+      setPassport(styles || []);
+      setLoading(false);
+    })();
+    return () => { mounted = false; };
+  }, [userId]);
+
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: total > 0 ? earnedCount / total : 0,
+      duration: 900,
+      delay: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [earnedCount, total, progressAnim]);
+
+  useEffect(() => {
+    passportProgressAnim.setValue(0);
+    if (passport.length > 0) animatePassportBars();
+  }, [passport, passportProgressAnim, animatePassportBars]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color={COLORS.accent} size="large" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -260,16 +265,10 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.borderGold, padding: SPACING.md, gap: SPACING.md,
   },
   passportRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  passportEmoji: { fontSize: 16, width: 22, textAlign: 'center' },
-  passportLabel: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '600', width: 100 },
-  passportBar: {
-    flex: 1, height: 4, backgroundColor: COLORS.border,
-    borderRadius: RADIUS.full, overflow: 'hidden',
-  },
+  passportEmoji: { fontSize: 18, width: 24 },
+  passportLabel: { color: COLORS.textSecondary, fontSize: 12, width: 86 },
+  passportBar: { flex: 1, height: 8, backgroundColor: COLORS.border, borderRadius: RADIUS.full, overflow: 'hidden' },
   passportFill: { height: '100%', backgroundColor: COLORS.accent, borderRadius: RADIUS.full },
   passportCount: { color: COLORS.accent, fontSize: 12, fontWeight: '700', width: 20, textAlign: 'right' },
-  passportHint: {
-    color: COLORS.textMuted, fontSize: 12, textAlign: 'center',
-    lineHeight: 18, paddingHorizontal: SPACING.lg,
-  },
+  passportHint: { color: COLORS.textMuted, fontSize: 12, lineHeight: 18, textAlign: 'center' },
 });
