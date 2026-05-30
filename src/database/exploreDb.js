@@ -1,15 +1,41 @@
 /**
  * exploreDb.js
  * SQLite helpers for Explore feed, artist profiles, and leaderboard queries.
- * Read-focused — all writes go through socialDb.
- *
- * Uses main-canonical table names:
- *   posts, follows, users_cache, tattoos
+ * Read focused. Writes go through socialDb.
  */
 import { getDB } from './db';
 
+function normalizeStyle(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/neo\s*traditional/g, 'neotrad')
+    .replace(/new\s*school/g, 'newschool')
+    .replace(/old\s*school/g, 'oldschool')
+    .replace(/fine\s*line/g, 'fineline')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+const BODY_PART_MATCHES = {
+  arm: ['arm', 'bicep', 'forearm', 'wrist'],
+  forearm: ['forearm'],
+  chest: ['chest'],
+  back: ['back'],
+  leg: ['leg', 'thigh', 'calf'],
+  calf: ['calf'],
+  ankle: ['ankle'],
+  neck: ['neck'],
+  hand: ['hand', 'wrist', 'finger'],
+  finger: ['finger'],
+  rib: ['rib', 'ribs'],
+  shoulder: ['shoulder'],
+  thigh: ['thigh'],
+  foot: ['foot'],
+  head: ['head', 'face'],
+  sleeve: ['sleeve'],
+};
+
 /**
- * Get public posts filtered by optional style and/or body_part tag.
+ * Get public posts filtered by optional style and body part.
  */
 export async function getExplorePosts({ style, bodyPart, limit = 30, offset = 0 } = {}) {
   try {
@@ -17,15 +43,25 @@ export async function getExplorePosts({ style, bodyPart, limit = 30, offset = 0 
     let query = `
       SELECT p.*,
              u.username, u.avatar_uri, u.display_name,
-             t.name AS tattoo_name, t.style, t.body_part, t.artist_name
+             t.name AS tattoo_name, t.style, t.placement AS body_part, t.artist_name
       FROM posts p
       LEFT JOIN users_cache u ON p.user_id = u.id
       LEFT JOIN tattoos t ON p.tattoo_id = t.id
       WHERE p.visibility = 'public'
     `;
     const args = [];
-    if (style)    { query += ' AND t.style = ?';      args.push(style); }
-    if (bodyPart) { query += ' AND t.body_part = ?';  args.push(bodyPart); }
+
+    if (style) {
+      query += ` AND LOWER(REPLACE(REPLACE(REPLACE(COALESCE(t.style, ''), '-', ''), ' ', ''), '/', '')) = ?`;
+      args.push(normalizeStyle(style));
+    }
+
+    if (bodyPart) {
+      const matches = BODY_PART_MATCHES[bodyPart] || [bodyPart];
+      query += ` AND (${matches.map(() => 'LOWER(COALESCE(t.placement, \'\')) LIKE ?').join(' OR ')})`;
+      matches.forEach((part) => args.push(`%${part.toLowerCase()}%`));
+    }
+
     query += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     args.push(limit, offset);
     return await db.getAllAsync(query, args) || [];
@@ -69,7 +105,7 @@ export async function getArtistData(artistName) {
     );
     const posts = await db.getAllAsync(
       `SELECT p.*, u.username, u.avatar_uri,
-              t.name AS tattoo_name, t.style, t.body_part
+              t.name AS tattoo_name, t.style, t.placement AS body_part
        FROM posts p
        LEFT JOIN users_cache u ON p.user_id = u.id
        LEFT JOIN tattoos t ON p.tattoo_id = t.id
@@ -81,7 +117,6 @@ export async function getArtistData(artistName) {
       if (t.style) acc[t.style] = (acc[t.style] || 0) + 1;
       return acc;
     }, {});
-    // Pick the instagram handle from the first tattoo that has one
     const instagramHandle = (tattoos || []).find((t) => t.artist_instagram)?.artist_instagram || null;
     return {
       artistName,
@@ -98,20 +133,17 @@ export async function getArtistData(artistName) {
 }
 
 /**
- * Friends leaderboard ranked by care_streak.
- * Reads from users_cache (cached friend profiles) + local_user for self.
+ * Friends leaderboard ranked by care streak.
  */
 export async function getFriendsLeaderboard(currentUserId) {
   try {
     const db = await getDB();
-    // Get followed user IDs
     const followRows = await db.getAllAsync(
       'SELECT following_id FROM follows WHERE follower_id = ? AND status = "accepted"',
       [currentUserId]
     );
     const followedIds = (followRows || []).map((f) => f.following_id);
 
-    // Build combined list: self (from local_user) + followed (from users_cache)
     const self = await db.getFirstAsync('SELECT * FROM local_user LIMIT 1');
     const friends = followedIds.length > 0
       ? await db.getAllAsync(
@@ -133,7 +165,7 @@ export async function getFriendsLeaderboard(currentUserId) {
 }
 
 /**
- * Style distribution for the current user (Style Passport).
+ * Style distribution for the current user.
  */
 export async function getUserStylePassport(userId) {
   try {
@@ -152,15 +184,14 @@ export async function getUserStylePassport(userId) {
 }
 
 /**
- * Get trending posts by reaction_count and recency.
- * Returns the top `limit` public posts ordered by reaction_count desc, then created_at desc.
+ * Get trending posts by reaction count and recency.
  */
 export async function getTrendingPosts({ limit = 8 } = {}) {
   try {
     const db = await getDB();
     const results = await db.getAllAsync(
       `SELECT p.*, u.username, u.avatar_uri, u.display_name,
-              t.name AS tattoo_name, t.style, t.body_part, t.artist_name
+              t.name AS tattoo_name, t.style, t.placement AS body_part, t.artist_name
        FROM posts p
        LEFT JOIN users_cache u ON p.user_id = u.id
        LEFT JOIN tattoos t ON p.tattoo_id = t.id
