@@ -22,6 +22,13 @@ import FriendsLeaderboardScreen from '../screens/FriendsLeaderboardScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import HealingTimelineScreen from '../screens/HealingTimelineScreen';
 import InstagramLoginScreen from '../screens/InstagramLoginScreen';
+import CareToolsScreen from '../screens/CareToolsScreen';
+import CareCoachScreen from '../screens/CareCoachScreen';
+import SymptomCheckScreen from '../screens/SymptomCheckScreen';
+import SanidermModeScreen from '../screens/SanidermModeScreen';
+import PhotoTimelineScreen from '../screens/PhotoTimelineScreen';
+import AppointmentPrepScreen from '../screens/AppointmentPrepScreen';
+import AppControlScreen from '../screens/AppControlScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -72,23 +79,28 @@ function MyTattoosStack() {
   );
 }
 
+function ToolsStack() {
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen name="CareTools" component={CareToolsScreen} options={{ title: 'Care Tools', headerShown: false }} />
+      <Stack.Screen name="CareCoach" component={CareCoachScreen} options={{ title: 'Care Coach', headerShown: false }} />
+      <Stack.Screen name="SymptomCheck" component={SymptomCheckScreen} options={{ title: 'Symptom Check', headerShown: false }} />
+      <Stack.Screen name="SanidermMode" component={SanidermModeScreen} options={{ title: 'Saniderm Mode', headerShown: false }} />
+      <Stack.Screen name="PhotoTimeline" component={PhotoTimelineScreen} options={{ title: 'Photo Timeline', headerShown: false }} />
+      <Stack.Screen name="AppointmentPrep" component={AppointmentPrepScreen} options={{ title: 'Appointment Prep', headerShown: false }} />
+      <Stack.Screen name="AppControl" component={AppControlScreen} options={{ title: 'App Control', headerShown: false }} />
+      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notification Settings' }} />
+      <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo Detail' }} />
+    </Stack.Navigator>
+  );
+}
+
 function ExploreStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="Explore" component={ExploreScreen} options={{ title: 'Explore' }} />
       <Stack.Screen name="ArtistProfile" component={ArtistProfileScreen} options={({ route }) => ({ title: route.params?.artistName || 'Artist' })} />
       <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile', headerShown: false }} />
-    </Stack.Navigator>
-  );
-}
-
-function PortfolioStack() {
-  return (
-    <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen name="Portfolio" component={PortfolioScreen} options={{ title: 'Portfolio' }} />
-      <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo Detail' }} />
-      <Stack.Screen name="CareLog" component={CareLogScreen} options={{ title: 'Care Log' }} />
-      <Stack.Screen name="CreateJournalPost" component={CreateJournalPostScreen} options={{ title: 'New Journal Post', presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }
@@ -110,8 +122,8 @@ function TabIcon({ routeName, focused, color, size }) {
   const icons = {
     HomeTab: 'home',
     TattoosTab: 'layers',
+    ToolsTab: 'tool',
     ExploreTab: 'compass',
-    PortfolioTab: 'image',
     ProfileTab: 'user',
   };
 
@@ -142,8 +154,8 @@ export default function AppNavigator() {
     >
       <Tab.Screen name="HomeTab" component={HomeStack} options={{ tabBarLabel: 'Home' }} />
       <Tab.Screen name="TattoosTab" component={MyTattoosStack} options={{ tabBarLabel: 'Tattoos' }} />
+      <Tab.Screen name="ToolsTab" component={ToolsStack} options={{ tabBarLabel: 'Tools' }} />
       <Tab.Screen name="ExploreTab" component={ExploreStack} options={{ tabBarLabel: 'Explore' }} />
-      <Tab.Screen name="PortfolioTab" component={PortfolioStack} options={{ tabBarLabel: 'Portfolio' }} />
       <Tab.Screen name="ProfileTab" component={ProfileStack} options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
@@ -170,35 +182,10 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 16,
   },
-  tabBarBlur: {
-    borderRadius: 26,
-    overflow: 'hidden',
-  },
-  androidTabBg: {
-    backgroundColor: 'rgba(18,12,9,0.95)',
-  },
-  tabItem: {
-    paddingVertical: 2,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-    marginTop: 2,
-  },
-  iconPill: {
-    width: 34,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconPillActive: {
-    backgroundColor: COLORS.accent,
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.45,
-    shadowRadius: 8,
-    elevation: 6,
-  },
+  tabBarBlur: { borderRadius: 26, overflow: 'hidden' },
+  androidTabBg: { backgroundColor: 'rgba(18,12,9,0.95)' },
+  tabItem: { paddingVertical: 2 },
+  tabLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3, marginTop: 2 },
+  iconPill: { width: 34, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  iconPillActive: { backgroundColor: COLORS.accent, shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.45, shadowRadius: 8, elevation: 6 },
 });
