@@ -1,11 +1,3 @@
-/**
- * AppNavigator.js — Phase 5 update
- * Adds: ExploreScreen, ArtistProfileScreen, BadgeCabinetScreen, FriendsLeaderboardScreen
- * Explore replaces the old Social tab; Profile tab gets Badges + Leaderboard as nested routes.
- *
- * Fix: removed unused SocialStack definition.
- * Fix: removed import of NotificationSettingsScreen (now imported only inside ProfileStack).
- */
 import React from 'react';
 import { StyleSheet, Platform, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -71,7 +63,7 @@ function HomeStack() {
 function MyTattoosStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen name="MyTattoos" component={MyTattoosScreen} options={{ title: 'My Tattoos' }} />
+      <Stack.Screen name="MyTattoos" component={MyTattoosScreen} options={{ title: 'My Tattoos', headerShown: false }} />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo Detail' }} />
       <Stack.Screen name="AddTattoo" component={AddTattooScreen} options={{ title: 'Add Tattoo', presentation: 'modal' }} />
       <Stack.Screen name="CareLog" component={CareLogScreen} options={{ title: 'Care Log' }} />
@@ -80,18 +72,16 @@ function MyTattoosStack() {
   );
 }
 
-// Explore: public grid + artist profiles
 function ExploreStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="Explore" component={ExploreScreen} options={{ title: 'Explore' }} />
       <Stack.Screen name="ArtistProfile" component={ArtistProfileScreen} options={({ route }) => ({ title: route.params?.artistName || 'Artist' })} />
-      <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile' }} />
+      <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile', headerShown: false }} />
     </Stack.Navigator>
   );
 }
 
-// Portfolio
 function PortfolioStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
@@ -103,11 +93,10 @@ function PortfolioStack() {
   );
 }
 
-// Profile: own profile, notifications, badges, leaderboard, settings
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'My Profile' }} />
+      <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'My Profile', headerShown: false }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
       <Stack.Screen name="BadgeCabinet" component={BadgeCabinetScreen} options={{ title: 'Badges & Achievements' }} />
       <Stack.Screen name="FriendsLeaderboard" component={FriendsLeaderboardScreen} options={{ title: 'Leaderboard' }} />
@@ -117,48 +106,99 @@ function ProfileStack() {
   );
 }
 
+function TabIcon({ routeName, focused, color, size }) {
+  const icons = {
+    HomeTab: 'home',
+    TattoosTab: 'layers',
+    ExploreTab: 'compass',
+    PortfolioTab: 'image',
+    ProfileTab: 'user',
+  };
+
+  return (
+    <View style={[styles.iconPill, focused && styles.iconPillActive]}>
+      <Feather name={icons[routeName] || 'circle'} size={size - 4} color={focused ? COLORS.textInverse : color} />
+    </View>
+  );
+}
+
 export default function AppNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: {
-          position: 'absolute',
-          backgroundColor: Platform.OS === 'ios' ? 'transparent' : 'rgba(12,11,8,0.92)',
-          borderTopColor: COLORS.tabBarBorder,
-          borderTopWidth: 1,
-          height: TAB_BAR_HEIGHT,
-          paddingBottom: 8,
-        },
+        tabBarStyle: styles.tabBar,
         tabBarBackground: () => (
           Platform.OS === 'ios'
-            ? <BlurView intensity={85} tint="dark" style={StyleSheet.absoluteFill} />
-            : null
+            ? <BlurView intensity={90} tint="dark" style={[StyleSheet.absoluteFill, styles.tabBarBlur]} />
+            : <View style={[StyleSheet.absoluteFill, styles.androidTabBg]} />
         ),
-        tabBarActiveTintColor: COLORS.tabBarActive,
+        tabBarActiveTintColor: COLORS.accent,
         tabBarInactiveTintColor: COLORS.tabBarInactive,
-        tabBarIcon: ({ color, size }) => {
-          const icons = {
-            HomeTab:      'home',
-            TattoosTab:   'layers',
-            ExploreTab:   'compass',
-            PortfolioTab: 'image',
-            ProfileTab:   'user',
-          };
-          return <Feather name={icons[route.name] || 'circle'} size={size - 2} color={color} />;
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
-          letterSpacing: 0.3,
-        },
+        tabBarIcon: ({ focused, color, size }) => <TabIcon routeName={route.name} focused={focused} color={color} size={size} />,
+        tabBarLabelStyle: styles.tabLabel,
+        tabBarItemStyle: styles.tabItem,
       })}
     >
-      <Tab.Screen name="HomeTab"      component={HomeStack}      options={{ tabBarLabel: 'Home' }} />
-      <Tab.Screen name="TattoosTab"   component={MyTattoosStack}  options={{ tabBarLabel: 'Tattoos' }} />
-      <Tab.Screen name="ExploreTab"   component={ExploreStack}    options={{ tabBarLabel: 'Explore' }} />
-      <Tab.Screen name="PortfolioTab" component={PortfolioStack}  options={{ tabBarLabel: 'Portfolio' }} />
-      <Tab.Screen name="ProfileTab"   component={ProfileStack}    options={{ tabBarLabel: 'Profile' }} />
+      <Tab.Screen name="HomeTab" component={HomeStack} options={{ tabBarLabel: 'Home' }} />
+      <Tab.Screen name="TattoosTab" component={MyTattoosStack} options={{ tabBarLabel: 'Tattoos' }} />
+      <Tab.Screen name="ExploreTab" component={ExploreStack} options={{ tabBarLabel: 'Explore' }} />
+      <Tab.Screen name="PortfolioTab" component={PortfolioStack} options={{ tabBarLabel: 'Portfolio' }} />
+      <Tab.Screen name="ProfileTab" component={ProfileStack} options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    bottom: 10,
+    height: TAB_BAR_HEIGHT + 10,
+    paddingTop: 8,
+    paddingBottom: 10,
+    borderRadius: 26,
+    borderTopWidth: 0,
+    borderWidth: 1,
+    borderColor: COLORS.borderGold,
+    backgroundColor: Platform.OS === 'ios' ? 'transparent' : 'rgba(18,12,9,0.95)',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 16,
+  },
+  tabBarBlur: {
+    borderRadius: 26,
+    overflow: 'hidden',
+  },
+  androidTabBg: {
+    backgroundColor: 'rgba(18,12,9,0.95)',
+  },
+  tabItem: {
+    paddingVertical: 2,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    marginTop: 2,
+  },
+  iconPill: {
+    width: 34,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconPillActive: {
+    backgroundColor: COLORS.accent,
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+});
