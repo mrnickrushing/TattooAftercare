@@ -116,7 +116,9 @@ export default function CreateJournalPostScreen({ route, navigation }) {
       try {
         const allPosts = await getLocalPosts(100);
         await checkAndAwardBadges('post_created', { postCount: allPosts.length });
-      } catch {}
+      } catch (e) {
+        console.warn('Badge check failed:', e);
+      }
 
       // Offer to share to Instagram after posting
       if (photoUris.length > 0 || caption.trim()) {

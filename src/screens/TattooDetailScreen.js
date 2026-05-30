@@ -61,7 +61,9 @@ export default function TattooDetailScreen({ route, navigation }) {
       }
       const all = await getAllMilestonesForTattoo(tattooId);
       setAllMilestones(all || []);
-    } catch {}
+    } catch (e) {
+      console.warn('Milestone check failed:', e);
+    }
   }, [tattooId]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));

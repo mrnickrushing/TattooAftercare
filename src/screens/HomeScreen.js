@@ -14,9 +14,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const BRI_LOGO = require('../../assets/blood-raven-logo.png');
 import { useFocusEffect } from '@react-navigation/native';
+
 import { Feather } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, commonStyles, TAB_BAR_HEIGHT } from '../constants/theme';
@@ -29,6 +28,8 @@ import StreakBadge from '../components/StreakBadge';
 import TattooBackground from '../components/TattooBackground';
 import ActivityRings from '../components/ActivityRings';
 import ConfettiCannon from '../components/ConfettiCannon';
+
+const BRI_LOGO = require('../../assets/icon.png');
 
 // Animated count-up number
 function AnimatedNumber({ value, style }) {

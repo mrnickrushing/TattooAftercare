@@ -1,11 +1,9 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { COLORS } from '../constants/theme';
+import React, { useState, useEffect } from 'react';
+import { Platform, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
-// expo-apple-authentication is iOS-only. We try to load it dynamically so the
-// app still builds on Android / web without the native module being present.
+// expo-apple-authentication is iOS-only. Load dynamically so the app still
+// builds on Android / web without the native module present.
 let AppleAuthentication;
 try {
   AppleAuthentication = require('expo-apple-authentication');
@@ -13,13 +11,23 @@ try {
   AppleAuthentication = null;
 }
 
-export default function AppleSignInButton({ navigation }) {
+export default function AppleSignInButton() {
   const { loginWithApple } = useAuth();
+  const [available, setAvailable] = useState(false);
 
-  // Only show on iOS and only when the module is available
-  if (Platform.OS !== 'ios' || !AppleAuthentication) return null;
+  useEffect(() => {
+    // isAvailableAsync returns false in Expo Go, simulators without the
+    // entitlement, and any build where the Sign in with Apple capability
+    // hasn't been provisioned — preventing the "Application not found" error.
+    if (Platform.OS !== 'ios' || !AppleAuthentication) return;
+    AppleAuthentication.isAvailableAsync()
+      .then(setAvailable)
+      .catch(() => setAvailable(false));
+  }, []);
 
-  const handleAppleSignIn = async () => {
+  if (!available) return null;
+
+  const handlePress = async () => {
     try {
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
@@ -35,30 +43,16 @@ export default function AppleSignInButton({ navigation }) {
     }
   };
 
+  // Apple guidelines require using their official button component.
+  // It also correctly binds to the native entitlement — resolving the
+  // "Application not found" error that custom TouchableOpacity buttons cause.
   return (
-    <TouchableOpacity style={styles.btn} activeOpacity={0.85} onPress={handleAppleSignIn}>
-      <Feather name="apple" size={18} color={COLORS.textPrimary} style={styles.icon} />
-      <Text style={styles.text}>Continue with Apple</Text>
-    </TouchableOpacity>
+    <AppleAuthentication.AppleAuthenticationButton
+      buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+      buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE}
+      cornerRadius={14}
+      style={{ width: '100%', height: 50 }}
+      onPress={handlePress}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  btn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1C1C1E',
-    borderRadius: 14,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  icon: { marginRight: 10 },
-  text: {
-    color: COLORS.textPrimary,
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-});

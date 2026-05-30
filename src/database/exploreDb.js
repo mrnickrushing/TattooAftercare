@@ -3,7 +3,7 @@
  * SQLite helpers for Explore feed, artist profiles, and leaderboard queries.
  * Read focused. Writes go through socialDb.
  */
-import { getDB } from './db';
+import { getDB } from './socialDb';
 
 function normalizeStyle(value) {
   return String(value || '')
