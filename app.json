@@ -71,6 +71,7 @@
           "isAccessMediaLocationEnabled": true
         }
       ],
+      "expo-apple-authentication",
       "expo-sqlite",
       [
         "expo-splash-screen",
