@@ -91,21 +91,21 @@ export default function LandingScreen({ navigation }) {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Bottom legal */}
-        <Text style={styles.legal}>
-          By continuing you agree to our Terms of Service and Privacy Policy.
-        </Text>
+        {/* Bottom legal + strip */}
+        <View style={styles.bottomGroup}>
+          <Text style={styles.legal}>
+            By continuing you agree to our Terms of Service and Privacy Policy.
+          </Text>
+          <View style={styles.bottomStrip} />
+        </View>
       </SafeAreaView>
-
-      {/* Decorative bottom border strip */}
-      <View style={styles.bottomStrip} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  safe: { flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 28, paddingVertical: 12 },
+  safe: { flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 28, paddingTop: 12, paddingBottom: 0 },
   topStrip: {
     height: 3,
     backgroundColor: COLORS.accent,
@@ -115,9 +115,10 @@ const styles = StyleSheet.create({
     height: 3,
     backgroundColor: COLORS.accent,
     opacity: 0.7,
+    width: '100%',
   },
 
-  hero: { alignItems: 'center', marginTop: height * 0.06 },
+  hero: { alignItems: 'center', marginTop: height * 0.03 },
   logoRing: {
     width: 120,
     height: 120,
@@ -141,7 +142,7 @@ const styles = StyleSheet.create({
     letterSpacing: 6,
     color: COLORS.textPrimary,
     textAlign: 'center',
-    lineHeight: 38,
+    lineHeight: 42,
   },
   divider: {
     flexDirection: 'row',
@@ -212,12 +213,12 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
+  bottomGroup: { width: '100%', alignItems: 'center', gap: 10 },
   legal: {
     fontSize: 10,
     color: COLORS.textMuted,
     textAlign: 'center',
     letterSpacing: 0.2,
-    marginBottom: 4,
     lineHeight: 15,
   },
 });
