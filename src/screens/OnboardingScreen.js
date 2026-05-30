@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -19,34 +20,57 @@ const ONBOARDING_KEY = 'onboarding_seen';
 const SLIDES = [
   {
     key: '1',
-    emoji: '🩸',
+    icon: 'droplet',
     gradient: [COLORS.flashRed, '#3D0000'],
+    label: 'Welcome',
     title: 'Blood Raven Ink:\nTattoo Aftercare',
     subtitle:
-      'A simple aftercare companion built to help you protect fresh work, follow care steps, and track healing day by day.',
+      'Everything you need to protect your fresh ink and track every stage of healing — all in one place.',
   },
   {
     key: '2',
-    emoji: '📸',
-    gradient: ['#3D0000', COLORS.accentDim],
-    title: 'Track Your\nHealing Progress',
+    icon: 'layers',
+    gradient: ['#3D0000', '#2A0A0A'],
+    label: 'My Tattoos',
+    title: 'Log & Track\nYour Tattoos',
     subtitle:
-      'Log photos, soreness, dryness, peeling, and daily care notes so your healing timeline stays organized from session to healed.',
+      'Add each piece, log daily care notes, track soreness and peeling, and build a complete healing record from session to healed.',
   },
   {
     key: '3',
-    emoji: '🤖',
-    gradient: [COLORS.accentDim, '#2A1A12'],
-    title: 'AI Aftercare\nGuidance',
+    icon: 'camera',
+    gradient: ['#2A0A0A', COLORS.accentDim],
+    label: 'Photo Timeline',
+    title: 'Capture Your\nHealing Journey',
     subtitle:
-      'Ask aftercare questions and get practical guidance based on your entries. Serious symptoms should always be checked by a professional.',
+      'Take progress photos day by day and watch your tattoo heal over time. Your timeline lives on the Home and Tools screens.',
   },
   {
     key: '4',
-    emoji: '🖤',
+    icon: 'tool',
+    gradient: [COLORS.accentDim, '#2A1A12'],
+    label: 'Care Tools',
+    title: 'AI Coach,\nSymptom Check & More',
+    subtitle:
+      'The Tools tab gives you an AI Aftercare Coach, Symptom Checker, Saniderm Mode, Appointment Prep, and healing reminders.',
+  },
+  {
+    key: '5',
+    icon: 'compass',
+    gradient: ['#1A2744', '#2A1A12'],
+    label: 'Explore',
+    title: 'Discover Artists\n& the Community',
+    subtitle:
+      'Browse artist profiles, explore the community feed, and share your healing journey with other tattoo enthusiasts.',
+  },
+  {
+    key: '6',
+    icon: 'heart',
     gradient: [COLORS.flashRed, COLORS.accentDim],
+    label: "Let's Go",
     title: 'Protect Your\nNew Ink',
-    subtitle: 'Start your Blood Raven Ink aftercare plan today and keep every session on track.',
+    subtitle:
+      'Create an account or sign in to sync your tattoos across devices. You can also continue as a guest to explore first.',
   },
 ];
 
@@ -79,7 +103,7 @@ export default function OnboardingScreen({ navigation }) {
     }
   };
 
-  const handleSkip = () => finish();
+  const isLast = activeIndex === SLIDES.length - 1;
 
   return (
     <View style={styles.root}>
@@ -90,10 +114,11 @@ export default function OnboardingScreen({ navigation }) {
       <View style={styles.topStrip} />
 
       <SafeAreaView style={styles.safe}>
+        {/* Skip button */}
         <View style={styles.skipRow}>
-          {activeIndex < SLIDES.length - 1 && (
+          {!isLast && (
             <TouchableOpacity
-              onPress={handleSkip}
+              onPress={finish}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Text style={styles.skipText}>Skip</Text>
@@ -101,6 +126,7 @@ export default function OnboardingScreen({ navigation }) {
           )}
         </View>
 
+        {/* Slides */}
         <FlatList
           ref={flatListRef}
           data={SLIDES}
@@ -118,21 +144,23 @@ export default function OnboardingScreen({ navigation }) {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Text style={styles.emoji}>{item.emoji}</Text>
+                <Feather name={item.icon} size={44} color={COLORS.textPrimary} />
               </LinearGradient>
-              <Text style={styles.brand}>Blood Raven Ink</Text>
+              <Text style={styles.label}>{item.label}</Text>
               <Text style={styles.title}>{item.title}</Text>
               <Text style={styles.subtitle}>{item.subtitle}</Text>
             </View>
           )}
         />
 
+        {/* Dots */}
         <View style={styles.dotsRow}>
           {SLIDES.map((_, i) => (
             <View key={i} style={[styles.dot, i === activeIndex && styles.dotActive]} />
           ))}
         </View>
 
+        {/* CTA */}
         <View style={styles.ctaWrap}>
           <TouchableOpacity onPress={handleNext} activeOpacity={0.85}>
             <LinearGradient
@@ -142,7 +170,7 @@ export default function OnboardingScreen({ navigation }) {
               end={{ x: 1, y: 0 }}
             >
               <Text style={styles.ctaText}>
-                {activeIndex === SLIDES.length - 1 ? 'Get Started →' : 'Next →'}
+                {isLast ? "Create Account or Sign In →" : 'Next →'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -188,8 +216,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(200,169,81,0.3)',
   },
-  emoji: { fontSize: 52 },
-  brand: {
+  label: {
     fontSize: 11,
     fontWeight: '800',
     color: COLORS.accent,
