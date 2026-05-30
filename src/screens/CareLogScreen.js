@@ -169,7 +169,9 @@ export default function CareLogScreen({ navigation }) {
           careLogs: allLogs,
           tattooId: selectedTattoo.id,
         });
-      } catch {}
+      } catch (e) {
+        console.warn('Badge check failed:', e);
+      }
 
       Alert.alert('Saved', healthStatus === 'doctor' ? '\u26a0\ufe0f Please consult a doctor about your symptoms.' : healthStatus === 'attention' ? 'Keep an eye on your tattoo.' : 'Keep up the great care!');
     } catch (e) {
