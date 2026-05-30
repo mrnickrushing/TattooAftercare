@@ -78,16 +78,20 @@ export default function AddTattooScreen({ navigation }) {
         thumbnail_uri: thumbnail || null,
       });
       await refreshTattoos();
-      await scheduleMorningReminder();
-      await scheduleEveningReminder();
-
-      const allTattoos = await getTattoos();
-      const newTattoo = await getTattooById(newTattooId);
-      if (newTattoo) await scheduleMilestoneReminders(newTattoo);
-      await scheduleAnniversaryNotifications(allTattoos);
-      await checkAndAwardBadges('tattoo_added', { tattoos: allTattoos });
-
       navigation.goBack();
+
+      // Post-save side effects — failures here must not surface as a save error
+      try {
+        await scheduleMorningReminder();
+        await scheduleEveningReminder();
+        const allTattoos = await getTattoos();
+        const newTattoo = await getTattooById(newTattooId);
+        if (newTattoo) await scheduleMilestoneReminders(newTattoo);
+        await scheduleAnniversaryNotifications(allTattoos);
+        await checkAndAwardBadges('tattoo_added', { tattoos: allTattoos });
+      } catch (e) {
+        console.warn('Post-save side effect error:', e);
+      }
     } catch (e) {
       Alert.alert('Error', 'Could not save tattoo. Please try again.');
     } finally {

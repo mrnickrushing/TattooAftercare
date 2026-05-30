@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { Alert } from 'react-native';
 import { getTattoos, getStreak } from '../database/db';
 import { isHealed } from '../utils/healingStages';
 
@@ -56,12 +57,16 @@ export function AppProvider({ children }) {
           const { customerInfo } = await Purchases.purchasePackage(pkg);
           const isPro = customerInfo.entitlements.active['pro'] !== undefined;
           setProStatus(isPro);
+          if (isPro) Alert.alert('Pro Unlocked!', 'Thanks for upgrading. Enjoy unlimited tattoos and all Pro features.');
           return isPro;
         }
       }
+      Alert.alert('Not Available', 'Pro upgrade is not available right now. Please try again later.');
       return false;
     } catch (e) {
+      if (e?.userCancelled) return false;
       console.error('Purchase error:', e);
+      Alert.alert('Purchase Failed', e?.message || 'Something went wrong. Please try again.');
       return false;
     }
   }, []);
@@ -72,9 +77,14 @@ export function AppProvider({ children }) {
       const customerInfo = await Purchases.restorePurchases();
       const isPro = customerInfo.entitlements.active['pro'] !== undefined;
       setProStatus(isPro);
+      Alert.alert(
+        isPro ? 'Purchase Restored' : 'Nothing to Restore',
+        isPro ? 'Your Pro access has been restored.' : 'No previous Pro purchase was found for this Apple ID.'
+      );
       return isPro;
     } catch (e) {
       console.error('Restore error:', e);
+      Alert.alert('Restore Failed', e?.message || 'Could not restore purchases. Please try again.');
       return false;
     }
   }, []);
