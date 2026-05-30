@@ -7,9 +7,10 @@ import { StatusBar } from 'expo-status-bar';
 import { initDB } from './src/database/db';
 import { requestPermissions } from './src/utils/notifications';
 import { AppProvider } from './src/context/AppContext';
-import { AuthProvider } from './src/context/AuthContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SocialProvider } from './src/context/SocialContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import AuthNavigator from './src/navigation/AuthNavigator';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { COLORS } from './src/constants/theme';
 import { REVENUECAT_API_KEY_IOS, REVENUECAT_API_KEY_ANDROID } from './src/config';
@@ -24,6 +25,25 @@ function initRevenueCat() {
   } catch {
     // RevenueCat not installed or keys not set — skip
   }
+}
+
+function RootNavigator() {
+  const { authStatus, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={COLORS.accent} size="large" />
+      </View>
+    );
+  }
+
+  // Show auth flow until user signs in or explicitly continues as guest
+  if (authStatus === 'needs_auth') {
+    return <AuthNavigator />;
+  }
+
+  return <AppNavigator />;
 }
 
 export default function App() {
@@ -76,7 +96,7 @@ export default function App() {
             >
               <StatusBar style="light" />
               <ErrorBoundary>
-                <AppNavigator />
+                <RootNavigator />
               </ErrorBoundary>
             </NavigationContainer>
           </AppProvider>

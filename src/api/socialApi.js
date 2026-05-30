@@ -48,6 +48,18 @@ export async function loginUser({ email, password }) {
   return data;
 }
 
+export async function loginWithApple(credential) {
+  const data = await request('POST', '/auth/apple', {
+    identity_token: credential.identityToken,
+    authorization_code: credential.authorizationCode,
+    full_name: credential.fullName,
+    email: credential.email,
+  }, false);
+  if (data.token) await AsyncStorage.setItem('auth_token', data.token);
+  if (data.user?.id) await AsyncStorage.setItem('user_id', data.user.id);
+  return data;
+}
+
 export async function logoutUser() {
   await AsyncStorage.multiRemove(['auth_token', 'user_id']);
 }

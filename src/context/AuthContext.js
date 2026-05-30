@@ -19,12 +19,17 @@ export function AuthProvider({ children }) {
       await initSocialDB();
       await migrateBadgeUniqueness();
       const token = await AsyncStorage.getItem('auth_token');
-      if (!token) { setAuthStatus('guest'); return; }
-      const profile = await socialApi.getMyProfile();
-      setUser(profile);
-      setAuthStatus('authenticated');
+      if (token) {
+        const profile = await socialApi.getMyProfile();
+        setUser(profile);
+        setAuthStatus('authenticated');
+        return;
+      }
+      // Check if user has previously chosen to use the app as a guest
+      const guestMode = await AsyncStorage.getItem('guest_mode');
+      setAuthStatus(guestMode ? 'guest' : 'needs_auth');
     } catch {
-      setAuthStatus('guest');
+      setAuthStatus('needs_auth');
     }
   };
 
@@ -42,10 +47,23 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
+  const loginWithApple = useCallback(async (credential) => {
+    const data = await socialApi.loginWithApple(credential);
+    setUser(data.user);
+    setAuthStatus('authenticated');
+    return data.user;
+  }, []);
+
+  const continueAsGuest = useCallback(async () => {
+    await AsyncStorage.setItem('guest_mode', '1');
+    setAuthStatus('guest');
+  }, []);
+
   const logout = useCallback(async () => {
     await socialApi.logoutUser();
+    await AsyncStorage.removeItem('guest_mode');
     setUser(null);
-    setAuthStatus('guest');
+    setAuthStatus('needs_auth');
   }, []);
 
   const updateProfile = useCallback(async (updates) => {
@@ -67,6 +85,8 @@ export function AuthProvider({ children }) {
       isLoading,
       login,
       register,
+      loginWithApple,
+      continueAsGuest,
       logout,
       updateProfile,
     }}>
