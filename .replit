@@ -38,3 +38,8 @@ externalPort = 80
 deploymentTarget = "static"
 build = ["npx", "expo", "export", "--platform", "web"]
 publicDir = "dist"
+
+[userenv]
+
+[userenv.shared]
+GITHUB_TOKEN_NAME = "GITHUB_TOKEN"
