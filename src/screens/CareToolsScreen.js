@@ -8,11 +8,11 @@ import ScreenHero from '../components/ScreenHero';
 
 const TOOLS = [
   { title: 'Today Care Coach', body: 'Day based guidance, reminders, and what to watch for.', icon: 'activity', route: 'CareCoach' },
-  { title: 'Symptom Check', body: 'Log redness, swelling, warmth, discharge, fever, and pain changes.', icon: 'alert-triangle', route: 'SymptomCheck' },
+  { title: 'Symptom Check', body: 'Log redness, swelling, discharge, fever, and pain changes.', icon: 'alert-triangle', route: 'SymptomCheck' },
   { title: 'Saniderm Mode', body: 'Track wrap timing, leaks, removal windows, and follow up care.', icon: 'shield', route: 'SanidermMode' },
   { title: 'Photo Timeline', body: 'Compare healing photos and build a visual record.', icon: 'camera', route: 'PhotoTimeline' },
   { title: 'Prep Checklist', body: 'Plan your next appointment before the needle hits skin.', icon: 'calendar', route: 'AppointmentPrep' },
-  { title: 'Settings & Backup', body: 'Export data, manage privacy, and tune reminders.', icon: 'settings', route: 'SettingsHub' },
+  { title: 'App Control', body: 'Reminder settings, privacy ideas, and future export tools.', icon: 'settings', route: 'AppControl' },
 ];
 
 export default function CareToolsScreen({ navigation }) {
