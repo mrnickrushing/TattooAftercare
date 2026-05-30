@@ -7,7 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "validate:jsx": "npx babel --presets @babel/preset-react src --extensions \".js,.jsx\" --out-dir /tmp/babel-check --no-babelrc",
-    "web": "expo start --web",
+    "web": "expo start --web --port 5000",
     "icon": "node generate-icon.js"
   },
   "dependencies": {
