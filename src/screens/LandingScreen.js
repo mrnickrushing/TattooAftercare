@@ -39,7 +39,7 @@ export default function LandingScreen({ navigation }) {
         <Animated.View style={[styles.hero, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.logoRing}>
             <Image
-              source={require('../../assets/blood-raven-logo.png')}
+              source={require('../../assets/icon.png')}
               style={styles.logo}
               resizeMode="contain"
             />

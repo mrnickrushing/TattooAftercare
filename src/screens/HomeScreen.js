@@ -29,7 +29,7 @@ import TattooBackground from '../components/TattooBackground';
 import ActivityRings from '../components/ActivityRings';
 import ConfettiCannon from '../components/ConfettiCannon';
 
-const BRI_LOGO = require('../../assets/blood-raven-logo.png');
+const BRI_LOGO = require('../../assets/icon.png');
 
 // Animated count-up number
 function AnimatedNumber({ value, style }) {
