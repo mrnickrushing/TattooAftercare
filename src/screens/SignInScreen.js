@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   scroll: { flexGrow: 1, paddingHorizontal: 28, paddingBottom: 40 },
 
-  backBtn: { marginTop: 12, marginBottom: 32, alignSelf: 'flex-start', padding: 4 },
+  backBtn: { marginTop: 12, marginBottom: 20, alignSelf: 'flex-start', padding: 4 },
 
   title: {
     fontSize: 38,

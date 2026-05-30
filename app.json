@@ -11,6 +11,7 @@
     ],
     "ios": {
       "supportsTablet": false,
+      "usesAppleSignIn": true,
       "bundleIdentifier": "com.tattooaftercare.app",
       "buildNumber": "2",
       "infoPlist": {
