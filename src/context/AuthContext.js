@@ -2,12 +2,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as socialApi from '../api/socialApi';
 import { initSocialDB } from '../database/socialDb';
+import { migrateBadgeUniqueness } from '../database/badgeMigration';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);      // { id, username, display_name, avatar_uri, ... }
-  const [authStatus, setAuthStatus] = useState('loading'); // 'loading' | 'guest' | 'authenticated'
+  const [user, setUser] = useState(null);
+  const [authStatus, setAuthStatus] = useState('loading');
 
   useEffect(() => {
     bootstrapAuth();
@@ -16,14 +17,13 @@ export function AuthProvider({ children }) {
   const bootstrapAuth = async () => {
     try {
       await initSocialDB();
+      await migrateBadgeUniqueness();
       const token = await AsyncStorage.getItem('auth_token');
       if (!token) { setAuthStatus('guest'); return; }
-      // Try to fetch profile to validate token
       const profile = await socialApi.getMyProfile();
       setUser(profile);
       setAuthStatus('authenticated');
     } catch {
-      // Token expired or network error — fall back to guest
       setAuthStatus('guest');
     }
   };
