@@ -9,7 +9,7 @@ export const TOUCHUP_REMINDER_DAYS = 90; // 3 months after healed
 
 // ─── Social / Community ──────────────────────────────────────────────────────
 // Replace with your Railway backend URL once deployed
-export const SOCIAL_API_BASE = 'https://YOUR_APP.up.railway.app';
+export const SOCIAL_API_BASE = 'https://api-production-6da9.up.railway.app';
 
 // Style tags available for posts
 export const TATTOO_STYLE_TAGS = [
