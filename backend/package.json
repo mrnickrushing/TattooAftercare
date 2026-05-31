@@ -1,0 +1,26 @@
+{
+  "name": "blood-raven-ink-api",
+  "version": "1.0.0",
+  "description": "Blood Raven Ink: Tattoo Aftercare backend API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0",
+    "pg": "^8.11.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
