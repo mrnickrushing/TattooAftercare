@@ -34,7 +34,16 @@ outputType = "webview"
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 5001
+externalPort = 3001
+
 [deployment]
 deploymentTarget = "static"
 build = ["npx", "expo", "export", "--platform", "web"]
 publicDir = "dist"
+
+[userenv]
+
+[userenv.shared]
+GITHUB_TOKEN_NAME = "GITHUB_TOKEN"
